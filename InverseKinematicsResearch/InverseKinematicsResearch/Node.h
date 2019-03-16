@@ -1,11 +1,13 @@
 #pragma once
 #include <vector>
+#define GIZMO_SCALE_MATRIX glm::scale(glm::mat4(1.0f), glm::vec3(0.2f))
 
 struct Connection;
 struct Node;
 struct OriginNode;
 struct EffectorNode;
 struct TargetNode;
+
 
 struct Connection
 {
@@ -63,17 +65,16 @@ public:
 		}
 	}
 
-	void DrawCurrent(Shader shader, unsigned int VAO)
+protected:
+	virtual void DrawCurrent(Shader shader, unsigned int VAO)
 	{
 		shader.use();
-		shader.setVec3("color", 1.0f, 1.0f, 1.0f);
-		shader.setMat4("model", this->GetModelMatrix());
+		shader.setVec3("color", 0.0f, 1.0f, 0.0f);
+		shader.setMat4("model", this->GetModelMatrix() * GIZMO_SCALE_MATRIX);
 		glBindVertexArray(VAO);
-		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-		glDrawArrays(GL_TRIANGLES, 0, 36);
-		shader.setVec3("color", 0.0f, 0.0f, 0.0f);
 		glLineWidth(2.0f);
-		glDrawArrays(GL_LINE_STRIP, 0, 36);
+		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+		glDrawArrays(GL_TRIANGLES, 0, 36);
 	}
 };
 
@@ -92,6 +93,20 @@ public:
 	{
 		return glm::translate(glm::mat4(1.0f), this->position) * glm::mat4_cast(rotation);
 	}
+
+protected:
+	virtual void DrawCurrent(Shader shader, unsigned int VAO)
+	{
+		shader.use();
+		shader.setVec3("color", 1.0f, 1.0f, 1.0f);
+		shader.setMat4("model", this->GetModelMatrix() * GIZMO_SCALE_MATRIX);
+		glBindVertexArray(VAO);
+		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+		glDrawArrays(GL_TRIANGLES, 0, 36);
+		shader.setVec3("color", 0.0f, 0.0f, 0.0f);
+		glLineWidth(2.0f);
+		glDrawArrays(GL_LINE_STRIP, 0, 36);
+	}
 };
 
 class EffectorNode : public Node
@@ -102,6 +117,18 @@ public:
 	EffectorNode(glm::vec3 rotation, float length, TargetNode* target = nullptr, Node* parent = nullptr) : Node(rotation, length, parent)
 	{
 		this->target = target;
+	}
+
+protected:
+	virtual void DrawCurrent(Shader shader, unsigned int VAO)
+	{
+		shader.use();
+		shader.setVec3("color", 1.0f, 1.0f, 0.0f);
+		shader.setMat4("model", this->GetModelMatrix() * GIZMO_SCALE_MATRIX);
+		glBindVertexArray(VAO);
+		glLineWidth(2.0f);
+		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+		glDrawArrays(GL_TRIANGLES, 0, 36);
 	}
 };
 
