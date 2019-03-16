@@ -79,6 +79,34 @@ __device__ float4 multiplyMatByVec(Matrix left, float4 vector)
 	return result;
 }
 
+__device__ Matrix quaternionToMatrix(glm::quat rotation)
+{
+	Matrix mat = createMatrix(1.0f);
+	mat.cells[0] = 1 - 2 * rotation.y * rotation.y - 2* rotation.z * rotation.z;
+	mat.cells[1] = 2 * rotation.x*rotation.y - 2 * rotation.z*rotation.w;
+	mat.cells[2] = 2 * rotation.x*rotation.z + 2 * rotation.y*rotation.w;
+	mat.cells[3] = 0;
+
+	mat.cells[4] = 2 * rotation.x*rotation.y + 2 * rotation.z*rotation.w;
+	mat.cells[5] = 1 - 2*rotation.x*rotation.x - 2*rotation.z*rotation.z;
+	mat.cells[6] = 2*rotation.y*rotation.z - 2*rotation.x*rotation.w;
+	mat.cells[7] = 0;
+
+	mat.cells[8] = 2*rotation.x*rotation.z - 2*rotation.y*rotation.w;
+	mat.cells[9] = 2*rotation.y*rotation.z + 2 * rotation.x * rotation.w;
+	mat.cells[10] = 1 - 2*rotation.x*rotation.x - 2*rotation.y*rotation.y;
+	mat.cells[11] = 0;
+
+	mat.cells[12] = 0;
+	mat.cells[13] = 0;
+	mat.cells[14] = 0;
+	mat.cells[15] = 1;
+
+	return mat;
+
+}
+
+
 __device__ Matrix scaleMatrix(Matrix left, float3 scale)
 {
 	Matrix mat = createMatrix(1.0f);
