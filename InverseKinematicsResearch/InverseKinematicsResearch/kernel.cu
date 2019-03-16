@@ -79,7 +79,7 @@ __device__ float4 multiplyMatByVec(Matrix left, float4 vector)
 	return result;
 }
 
-__device__ Matrix quaternionToMatrix(glm::quat rotation)
+__device__ Matrix quaternionToMatrix(float4 rotation)
 {
 	Matrix mat = createMatrix(1.0f);
 	mat.cells[0] = 1 - 2 * rotation.y * rotation.y - 2* rotation.z * rotation.z;
