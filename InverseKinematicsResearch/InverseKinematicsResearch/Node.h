@@ -4,10 +4,10 @@
 #define GIZMO_SCALE_MATRIX glm::scale(glm::mat4(1.0f), glm::vec3(GIZMO_SIZE))
 
 struct Connection;
-struct Node;
-struct OriginNode;
-struct EffectorNode;
-struct TargetNode;
+class Node;
+class OriginNode;
+class EffectorNode;
+class TargetNode;
 
 
 struct Connection
@@ -65,6 +65,15 @@ public:
 			return link.parent->GetModelMatrix()* glm::mat4_cast(rotation) * glm::translate(glm::mat4(1.0f), glm::vec3(link.length, 0.0f, 0.0f)) ;
 		}
 	}
+
+	//NodeCUDA* ToCUDA()
+	//{
+	//	unsigned int size = 0;
+	//	for (int i = 0; i < link.children.size(); i++)
+	//	{
+	//		size += sizeof(*link.children[i]);
+	//	}
+	//}
 
 protected:
 	virtual void DrawCurrent(Shader shader, unsigned int VAO)
@@ -153,4 +162,19 @@ class TargetNode
 public:
 	glm::vec3 position;
 	glm::quat rotation;
+
+	glm::mat4 GetModelMatrix()
+	{
+		return glm::translate(glm::mat4(1.0f), position) * glm::mat4_cast(rotation);
+	}
+
+	void DrawCurrent(Shader shader, unsigned int VAO)
+	{
+		shader.use();
+		shader.setVec3("color", 1.0f, 0.0f, 0.0f);
+		shader.setMat4("model", this->GetModelMatrix() * GIZMO_SCALE_MATRIX);
+		glBindVertexArray(VAO);
+		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+		glDrawArrays(GL_TRIANGLES, 0, 36);
+	}
 };

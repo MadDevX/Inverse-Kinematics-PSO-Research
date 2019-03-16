@@ -2,6 +2,17 @@
 #include <stdio.h>
 #include <vector_types.h>
 
+struct NodeCUDA
+{
+	int nodeType;
+	int parentIndex;
+	float3 position;
+	float4 rotation;
+	float length;
+	float3 targetPosition;
+	float4 targetRotation;
+};
+
 struct KinematicChainCuda
 {
 	float3 _shoulderPosition;
