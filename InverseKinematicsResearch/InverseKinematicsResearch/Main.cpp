@@ -54,10 +54,11 @@ int main(int argc, char** argv)
 		N = atoi(argv[1]);
 	}
 
-	OriginNode* nodeArm = &OriginNode();
-	Node* nodeElbow = &Node(glm::vec3(0.0f), 1.0f, nodeArm);
+	OriginNode* nodeArm = new OriginNode();
+	Node* nodeElbow = new Node(glm::vec3(0.0f), 1.0f);
+	EffectorNode* nodeWrist = new EffectorNode(glm::vec3(0.0f), 1.0f);
 	nodeArm->AttachChild(nodeElbow);
-	nodeElbow->AttachChild(&EffectorNode(glm::vec3(0.0f), 1.0f, nullptr, nodeElbow));
+	nodeElbow->AttachChild(nodeWrist);
 
 	GLFWwindow* window = initOpenGLContext();
 	Shader shader("3.3.jointShader.vert", "3.3.jointShader.frag");
@@ -118,6 +119,10 @@ int main(int argc, char** argv)
 	cudaFree(randoms);
 	cudaFree(particles);
 	cudaFree(bests);
+
+	delete(nodeArm);
+	delete(nodeElbow);
+	delete(nodeWrist);
 	return 0;
 }
 
