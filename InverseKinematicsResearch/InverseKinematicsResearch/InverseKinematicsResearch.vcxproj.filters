@@ -24,5 +24,6 @@
     <ClInclude Include="KinematicChain.h" />
     <ClInclude Include="Models.h" />
     <ClInclude Include="Particle.h" />
+    <ClInclude Include="Node.h" />
   </ItemGroup>
 </Project>
