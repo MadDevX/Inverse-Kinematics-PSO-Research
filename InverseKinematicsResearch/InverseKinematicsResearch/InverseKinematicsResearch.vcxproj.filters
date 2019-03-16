@@ -16,4 +16,13 @@
       <Filter>Shaders</Filter>
     </None>
   </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="glad.c" />
+    <ClCompile Include="Main.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="KinematicChain.h" />
+    <ClInclude Include="Models.h" />
+    <ClInclude Include="Particle.h" />
+  </ItemGroup>
 </Project>

@@ -9,7 +9,7 @@
 #include <thrust/extrema.h>
 #include "Particle.h"
 
-#define blockSize 1024
+#define blockSize 256
 __constant__ float locality = -0.1f;
 __constant__ float angleWeight = 0.05f;
 __constant__ float errorThreshold = 0.1f;
