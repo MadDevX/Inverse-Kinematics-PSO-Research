@@ -11,6 +11,7 @@
 #include "Models.h"
 #include "Particle.h"
 #include "KinematicChain.h"
+#include "Node.h"
 
 int WINDOW_WIDTH = 800;
 int WINDOW_HEIGHT = 600;
@@ -53,6 +54,11 @@ int main(int argc, char** argv)
 		N = atoi(argv[1]);
 	}
 
+	OriginNode* nodeArm = &OriginNode();
+	Node* nodeElbow = &Node(glm::vec3(0.0f), 1.0f, nodeArm);
+	nodeArm->AttachChild(nodeElbow);
+	nodeElbow->AttachChild(&EffectorNode(glm::vec3(0.0f), 1.0f, nullptr, nodeElbow));
+
 	GLFWwindow* window = initOpenGLContext();
 	Shader shader("3.3.jointShader.vert", "3.3.jointShader.frag");
 	updateLinkVertices(arm);
@@ -87,11 +93,15 @@ int main(int argc, char** argv)
 		updateLinkBuffer(arm, linkVBO);
 		glClearColor(0.3f, 0.3f, 0.3f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
+		
+		shader.use();
+		shader.setMat4("view", view);
+		shader.setMat4("projection", glm::perspective(glm::radians(45.0f), (float)WINDOW_WIDTH / WINDOW_HEIGHT, 0.1f, 100.0f));
 		drawCoordinates(shader, coordVAO);
-		drawLinks(arm, shader, linkVAO);
-		drawArm(arm, shader, VAO);
-		drawTarget(target, shader, VAO);
+		//drawLinks(arm, shader, linkVAO);
+		//drawArm(arm, shader, VAO);
+		//drawTarget(target, shader, VAO);
+		nodeArm->Draw(shader, VAO);
 
 		glfwSwapBuffers(window);
 	}

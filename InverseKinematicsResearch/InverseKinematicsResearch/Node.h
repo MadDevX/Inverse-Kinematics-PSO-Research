@@ -1,14 +1,18 @@
 #pragma once
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
-#include <glm/gtc/quaternion.hpp>
-#include "Particle.h"
+#include <vector>
+
+struct Connection;
+struct Node;
+struct OriginNode;
+struct EffectorNode;
+struct TargetNode;
 
 struct Connection
 {
-	Node* parent;
-	float length;
+public:
+	Node* parent = nullptr;
+	std::vector<Node*> children = std::vector<Node*>();
+	float length = 0.0f;
 };
 
 class Node
@@ -24,14 +28,30 @@ public:
 		rotation = glm::quat(glm::vec3(0.0f));
 	}
 
-	Node(Node* parent, glm::vec3 rotation, float length)
+	Node(glm::vec3 rotation, float length, Node* parent = nullptr)
 	{
 		link.length = length;
 		link.parent = parent;
 		this->rotation = glm::quat(rotation);
 	}
 
-	glm::mat4 virtual GetModelMatrix()
+	void AttachChild(Node* child)
+	{
+		child->link.parent = this;
+		link.children.push_back(child);
+	}
+
+	void Draw(Shader shader, unsigned int VAO)
+	{
+		DrawCurrent(shader, VAO);
+		for (int i = 0; i < link.children.size(); i++)
+		{
+			//add link drawing
+			link.children[i]->Draw(shader, VAO);
+		}
+	}
+
+	virtual glm::mat4 GetModelMatrix()
 	{
 		if (link.parent == nullptr)
 		{
@@ -42,14 +62,27 @@ public:
 			return link.parent->GetModelMatrix() * glm::translate(glm::mat4_cast(rotation), glm::vec3(link.length, 0.0f, 0.0f));
 		}
 	}
+
+	void DrawCurrent(Shader shader, unsigned int VAO)
+	{
+		shader.use();
+		shader.setVec3("color", 1.0f, 1.0f, 1.0f);
+		shader.setMat4("model", this->GetModelMatrix());
+		glBindVertexArray(VAO);
+		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+		glDrawArrays(GL_TRIANGLES, 0, 36);
+		shader.setVec3("color", 0.0f, 0.0f, 0.0f);
+		glLineWidth(2.0f);
+		glDrawArrays(GL_LINE_STRIP, 0, 36);
+	}
 };
 
-class OriginNode : Node
+class OriginNode : public Node
 {
 public:
 	glm::vec3 position;
 
-	OriginNode(glm::vec3 position, glm::vec3 rotation):Node()
+	OriginNode(glm::vec3 position = glm::vec3(0.0f), glm::vec3 rotation = glm::vec3(0.0f)):Node()
 	{
 		this->position = position;
 		this->rotation = glm::quat(rotation);
@@ -61,13 +94,18 @@ public:
 	}
 };
 
-class EffectorNode : Node
+class EffectorNode : public Node
 {
 public:
-	Target* target;
+	TargetNode* target;
+
+	EffectorNode(glm::vec3 rotation, float length, TargetNode* target = nullptr, Node* parent = nullptr) : Node(rotation, length, parent)
+	{
+		this->target = target;
+	}
 };
 
-class Target
+class TargetNode
 {
 public:
 	glm::vec3 position;
