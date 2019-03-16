@@ -62,7 +62,7 @@ public:
 		}
 		else
 		{
-			return link.parent->GetModelMatrix() * glm::translate(glm::mat4(1.0f), glm::vec3(link.length, 0.0f, 0.0f)) * glm::mat4_cast(rotation);
+			return link.parent->GetModelMatrix()* glm::mat4_cast(rotation) * glm::translate(glm::mat4(1.0f), glm::vec3(link.length, 0.0f, 0.0f)) ;
 		}
 	}
 
@@ -81,6 +81,7 @@ protected:
 	void DrawLink(Shader shader, unsigned int VAO, Node* child)
 	{
 		glm::mat4 model = GetModelMatrix() *
+						  glm::mat4_cast(child->rotation)*
 						  glm::translate(glm::mat4(1.0f), glm::vec3(child->link.length * 0.5f, 0.0f, 0.0f)) *
 						  glm::scale(glm::mat4(1.0f), glm::vec3(child->link.length, GIZMO_SIZE * 0.25f, GIZMO_SIZE * 0.25f));
 
