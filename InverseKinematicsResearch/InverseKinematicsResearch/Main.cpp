@@ -54,10 +54,21 @@ int main(int argc, char** argv)
 		N = atoi(argv[1]);
 	}
 
-	OriginNode* nodeArm = new OriginNode(glm::vec3(0.0f), glm::vec3(0.0f, -1.57f, 0.0f));
-	Node* nodeElbow = new Node(glm::vec3(0.0f, 1.57f, 0.0f), 1.0f);
-	EffectorNode* nodeWrist = new EffectorNode(glm::vec3(0.0f, 1.57f, 0.0f), 1.0f);
-	EffectorNode* nodeWrist2 = new EffectorNode(glm::vec3(0.0f, 0.0f, 1.57f), 1.0f);
+	//OriginNode* nodeArm = new OriginNode(glm::vec3(0.0f), glm::vec3(0.0f, -1.57f, 0.0f));
+	//Node* nodeElbow = new Node(glm::vec3(0.0f, 1.57f, 0.0f), 1.0f);
+	//EffectorNode* nodeWrist = new EffectorNode(glm::vec3(0.0f, 1.57f, 0.0f), 1.0f);
+	//EffectorNode* nodeWrist2 = new EffectorNode(glm::vec3(0.0f, 0.0f, 1.57f), 1.0f);
+	Node *nodeArm, *nodeElbow, *nodeWrist, *nodeWrist2;
+	cudaMallocManaged(&nodeArm, sizeof(OriginNode));
+	cudaMallocManaged(&nodeElbow, sizeof(Node));
+	cudaMallocManaged(&nodeWrist, sizeof(EffectorNode));
+	cudaMallocManaged(&nodeWrist2, sizeof(EffectorNode));
+	cudaMemcpy(nodeArm, &OriginNode(glm::vec3(0.0f), glm::vec3(0.0f, -1.57f, 0.0f)), sizeof(OriginNode), cudaMemcpyHostToHost);
+	cudaMemcpy(nodeElbow, &Node(glm::vec3(0.0f, 1.57f, 0.0f), 1.0f), sizeof(Node), cudaMemcpyHostToHost);
+	cudaMemcpy(nodeWrist, &EffectorNode(glm::vec3(0.0f, 1.57f, 0.0f), 1.0f), sizeof(EffectorNode), cudaMemcpyHostToHost);
+	cudaMemcpy(nodeWrist2, &EffectorNode(glm::vec3(0.0f, 0.0f, 1.57f), 1.0f), sizeof(EffectorNode), cudaMemcpyHostToHost);
+
+
 	nodeArm->AttachChild(nodeElbow);
 	nodeElbow->AttachChild(nodeWrist);
 	nodeElbow->AttachChild(nodeWrist2);
@@ -121,9 +132,10 @@ int main(int argc, char** argv)
 	cudaFree(particles);
 	cudaFree(bests);
 
-	delete(nodeArm);
-	delete(nodeElbow);
-	delete(nodeWrist);
+	cudaFree(nodeArm);
+	cudaFree(nodeElbow);
+	cudaFree(nodeWrist);
+	cudaFree(nodeWrist2);
 	return 0;
 }
 
