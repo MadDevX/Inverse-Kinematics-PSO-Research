@@ -1,6 +1,7 @@
 #pragma once
 #include <stdio.h>
 #include <vector_types.h>
+//#define DEGREES_OF_FREEDOM 6
 
 struct NodeCUDA
 {
@@ -38,6 +39,10 @@ struct Coordinates
 
 struct Particle
 {
+	//float positions[DEGREES_OF_FREEDOM];
+	//float velocities[DEGREES_OF_FREEDOM];
+	//float localBest[DEGREES_OF_FREEDOM];
+
 	Coordinates positions;
 	Coordinates velocities;
 	Coordinates localBest;
