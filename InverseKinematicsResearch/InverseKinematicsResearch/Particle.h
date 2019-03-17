@@ -3,9 +3,16 @@
 #include <vector_types.h>
 //#define DEGREES_OF_FREEDOM 6
 
+enum NodeType
+{
+	originNode,
+	effectorNode,
+	node
+};
+
 struct NodeCUDA
 {
-	int nodeType;
+	NodeType nodeType;
 	int parentIndex;
 	float3 position;
 	float4 rotation;

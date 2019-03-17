@@ -66,16 +66,56 @@ public:
 		}
 	}
 
-	//NodeCUDA* ToCUDA()
-	//{
-	//	unsigned int size = 0;
-	//	for (int i = 0; i < link.children.size(); i++)
-	//	{
-	//		size += sizeof(*link.children[i]);
-	//	}
-	//}
+	void ToCUDA(NodeCUDA* allocatedPtr)
+	{	
+		int index = 0;
+		CopyToArray(allocatedPtr, &index);
+	}
+
+	NodeCUDA* AllocateCUDA()
+	{
+		NodeCUDA* nodeC;
+		int nodeCount = 1 + this->CountChildren();
+		cudaMallocManaged(&nodeC, nodeCount * sizeof(NodeCUDA));
+		return nodeC;
+	}
+#pragma region protected
 
 protected:
+
+	virtual void FillNodeCUDAtype(NodeCUDA* node)
+	{
+		node->nodeType = NodeType::node;
+	}
+
+
+	void CopyToArray(NodeCUDA* array, int* index, int parentIndex =-1)
+	{
+
+		NodeCUDA tmpNode = NodeCUDA();
+		tmpNode.length = this->link.length;
+		tmpNode.rotation.w= this->rotation.w;
+		tmpNode.rotation.x=	this->rotation.x;
+		tmpNode.rotation.y=	this->rotation.y;
+		tmpNode.rotation.z=	this->rotation.z;	
+		tmpNode.parentIndex = parentIndex;
+		this->FillNodeCUDAtype(&tmpNode);
+
+		parentIndex = (*index);
+
+		cudaMemcpy((void*)(array + *index), (void*)&tmpNode, sizeof(NodeCUDA), cudaMemcpyHostToDevice);
+
+		(*index)++;
+
+	
+		for (int i = 0; i < link.children.size(); i++)
+		{
+			link.children[i]->CopyToArray(array, index ,parentIndex);
+		}
+		
+	}
+
+
 	virtual void DrawCurrent(Shader shader, unsigned int VAO)
 	{
 		shader.use();
@@ -101,6 +141,28 @@ protected:
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 		glDrawArrays(GL_TRIANGLES, 0, 36);
 	}
+
+#pragma endregion
+
+private:
+
+
+	int CountChildren()
+	{
+		int sum = 0;
+		
+		if (link.children.size()!=0)
+		{
+			for (int i = 0; i < link.children.size(); i++)
+			{
+				sum += link.children[i]->CountChildren()+1;
+			}
+		}
+		
+		return sum;
+
+	}
+
 };
 
 class OriginNode : public Node
@@ -120,6 +182,17 @@ public:
 	}
 
 protected:
+
+	void FillNodeCUDAtype(NodeCUDA* node) override
+	{
+		node->nodeType = NodeType::originNode;
+
+		node->position.x = this->position.x;
+		node->position.y = this->position.y;
+		node->position.z = this->position.z;
+		
+	}
+
 	virtual void DrawCurrent(Shader shader, unsigned int VAO)
 	{
 		shader.use();
@@ -131,29 +204,6 @@ protected:
 		shader.setVec3("color", 0.0f, 0.0f, 0.0f);
 		glLineWidth(2.0f);
 		glDrawArrays(GL_LINE_STRIP, 0, 36);
-	}
-};
-
-class EffectorNode : public Node
-{
-public:
-	TargetNode* target;
-
-	EffectorNode(glm::vec3 rotation, float length, TargetNode* target = nullptr, Node* parent = nullptr) : Node(rotation, length, parent)
-	{
-		this->target = target;
-	}
-
-protected:
-	virtual void DrawCurrent(Shader shader, unsigned int VAO)
-	{
-		shader.use();
-		shader.setVec3("color", 1.0f, 1.0f, 0.0f);
-		shader.setMat4("model", this->GetModelMatrix() * GIZMO_SCALE_MATRIX);
-		glBindVertexArray(VAO);
-		glLineWidth(2.0f);
-		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-		glDrawArrays(GL_TRIANGLES, 0, 36);
 	}
 };
 
@@ -178,3 +228,45 @@ public:
 		glDrawArrays(GL_TRIANGLES, 0, 36);
 	}
 };
+
+
+class EffectorNode : public Node
+{
+public:
+	TargetNode* target;
+
+	EffectorNode(glm::vec3 rotation, float length, TargetNode* target = nullptr, Node* parent = nullptr) : Node(rotation, length, parent)
+	{
+		this->target = target;
+	}
+
+protected:
+
+	void FillNodeCUDAtype(NodeCUDA* node) override
+	{
+		node->nodeType = NodeType::originNode;
+		if (target != nullptr)
+		{
+			node->targetPosition.x = this->target->position.x;
+			node->targetPosition.y = this->target->position.y;
+			node->targetPosition.z = this->target->position.z;
+
+			node->targetRotation.w = this->target->rotation.w;
+			node->targetRotation.x = this->target->rotation.x;
+			node->targetRotation.y = this->target->rotation.y;
+			node->targetRotation.z = this->target->rotation.z;	
+		}
+	}
+
+	virtual void DrawCurrent(Shader shader, unsigned int VAO)
+	{
+		shader.use();
+		shader.setVec3("color", 1.0f, 1.0f, 0.0f);
+		shader.setMat4("model", this->GetModelMatrix() * GIZMO_SCALE_MATRIX);
+		glBindVertexArray(VAO);
+		glLineWidth(2.0f);
+		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+		glDrawArrays(GL_TRIANGLES, 0, 36);
+	}
+};
+
