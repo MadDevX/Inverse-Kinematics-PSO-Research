@@ -300,6 +300,27 @@ __global__ void randInitKernel(curandState_t *randoms, int size)
 	}
 }
 
+
+__global__ void testNodeCudaKernel(NodeCUDA* chain)
+{
+	
+	chain[0].position.x = 0.f;
+
+}
+
+
+cudaError_t testNodeCuda(NodeCUDA* chain)
+{
+	cudaError_t cudaStatus;
+
+	testNodeCudaKernel << <1, 1 >> > (chain);
+	checkCuda(cudaStatus = cudaGetLastError());
+	if (cudaStatus == cudaSuccess)
+		checkCuda(cudaStatus = cudaDeviceSynchronize());
+
+	return cudaStatus;
+}
+
 cudaError_t initGenerators(curandState_t *randoms, int size)
 {
 	cudaError_t cudaStatus;

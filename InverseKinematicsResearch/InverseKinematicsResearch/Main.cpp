@@ -32,6 +32,8 @@ Target target(glm::vec3(1.0f, 0.0f, -1.0f), glm::vec3(0.0f), 0.1f);
 
 extern cudaError_t initGenerators(curandState_t *randoms, int size);
 extern cudaError_t calculatePSO(Particle *particles, float *bests, curandState_t *randoms, int size, KinematicChainCuda chain, float3 targetPosition, Config config, Coordinates *result);
+extern cudaError_t testNodeCuda(NodeCUDA* chain);
+
 GLFWwindow* initOpenGLContext();
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
@@ -78,6 +80,8 @@ int main(int argc, char** argv)
 	NodeCUDA* chainCuda = nodeArm->AllocateCUDA();
 	nodeArm->ToCUDA(chainCuda);
 	std::cout << chainCuda[0].position.x<< std::endl;
+	testNodeCuda(chainCuda);
+	std::cout << chainCuda[0].position.x << std::endl;
 	cudaFree(chainCuda);
 
 	GLFWwindow* window = initOpenGLContext();
