@@ -2,6 +2,7 @@
 #include <vector>
 #define GIZMO_SIZE 0.2f
 #define GIZMO_SCALE_MATRIX glm::scale(glm::mat4(1.0f), glm::vec3(GIZMO_SIZE))
+#define PI glm::pi<float>()
 
 struct Connection;
 class Node;
@@ -20,8 +21,14 @@ public:
 
 class Node
 {
+#pragma region public 
+
 public:
+	
 	glm::quat rotation;
+	glm::quat minRotation;
+	glm::quat maxRotation;
+
 	Connection link;
 
 	Node()
@@ -31,11 +38,15 @@ public:
 		rotation = glm::quat(glm::vec3(0.0f));
 	}
 
-	Node(glm::vec3 rotation, float length, Node* parent = nullptr)
+	Node(glm::vec3 rotation, glm::vec3 minRotation, glm::vec3 maxRotation, float length, Node* parent = nullptr)
 	{
 		link.length = length;
 		link.parent = parent;
+		
+
 		this->rotation = glm::quat(rotation);
+		this->minRotation = glm::quat(minRotation);
+		this->maxRotation = glm::quat(maxRotation);
 	}
 
 	void AttachChild(Node* child)
@@ -79,9 +90,13 @@ public:
 		cudaMallocManaged(&nodeC, nodeCount * sizeof(NodeCUDA));
 		return nodeC;
 	}
+
+#pragma endregion
+
 #pragma region protected
 
 protected:
+	
 
 	virtual void FillNodeCUDAtype(NodeCUDA* node)
 	{
@@ -94,10 +109,22 @@ protected:
 
 		NodeCUDA tmpNode = NodeCUDA();
 		tmpNode.length = this->link.length;
+
 		tmpNode.rotation.w= this->rotation.w;
 		tmpNode.rotation.x=	this->rotation.x;
 		tmpNode.rotation.y=	this->rotation.y;
 		tmpNode.rotation.z=	this->rotation.z;	
+		
+		tmpNode.minRotation.w = this->minRotation.w;
+		tmpNode.minRotation.x = this->minRotation.x;
+		tmpNode.minRotation.y = this->minRotation.y;
+		tmpNode.minRotation.z = this->minRotation.z;
+
+		tmpNode.maxRotation.w = this->maxRotation.w;
+		tmpNode.maxRotation.x = this->maxRotation.x;
+		tmpNode.maxRotation.y = this->maxRotation.y;
+		tmpNode.maxRotation.z = this->maxRotation.z;
+			   
 		tmpNode.parentIndex = parentIndex;
 		this->FillNodeCUDAtype(&tmpNode);
 
@@ -146,6 +173,7 @@ protected:
 
 private:
 
+	
 
 	int CountChildren()
 	{
@@ -167,13 +195,21 @@ private:
 
 class OriginNode : public Node
 {
-public:
-	glm::vec3 position;
 
-	OriginNode(glm::vec3 position = glm::vec3(0.0f), glm::vec3 rotation = glm::vec3(0.0f)):Node()
+public:
+
+	glm::vec3 position;
+	
+
+	OriginNode(glm::vec3 position = glm::vec3(0.0f),
+			   glm::vec3 rotation = glm::vec3(0.0f), 
+			   glm::vec3 minRotation = glm::vec3(-1.0f*PI, -1.0f*PI, -1.0f*PI),
+			   glm::vec3 maxRotation = glm::vec3(+1.0f*PI, +1.0f*PI, +1.0f*PI)):Node()
 	{
 		this->position = position;
 		this->rotation = glm::quat(rotation);
+		this->minRotation = glm::quat(minRotation);
+		this->maxRotation = glm::quat(maxRotation);
 	}
 	
 	glm::mat4 GetModelMatrix() override
@@ -235,7 +271,7 @@ class EffectorNode : public Node
 public:
 	TargetNode* target;
 
-	EffectorNode(glm::vec3 rotation, float length, TargetNode* target = nullptr, Node* parent = nullptr) : Node(rotation, length, parent)
+	EffectorNode(glm::vec3 rotation, glm::vec3 minRotation, glm::vec3 maxRotation, float length, TargetNode* target = nullptr, Node* parent = nullptr) : Node(rotation,minRotation,maxRotation,length, parent)
 	{
 		this->target = target;
 	}
@@ -255,6 +291,7 @@ protected:
 			node->targetRotation.x = this->target->rotation.x;
 			node->targetRotation.y = this->target->rotation.y;
 			node->targetRotation.z = this->target->rotation.z;	
+
 		}
 	}
 
