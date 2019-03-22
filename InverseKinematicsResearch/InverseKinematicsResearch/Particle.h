@@ -15,7 +15,11 @@ struct NodeCUDA
 	NodeType nodeType;
 	int parentIndex;
 	float3 position;
-	float4 rotation;
+	float4 rotation; //rotation relative to parent
+
+	float4 maxRotation;
+	float4 minRotation;
+
 	float length;
 	float3 targetPosition;
 	float4 targetRotation;
