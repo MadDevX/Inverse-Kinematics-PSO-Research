@@ -12,12 +12,9 @@
 #include "Particle.h"
 #include "KinematicChain.h"
 #include "Node.h"
-
 int WINDOW_WIDTH = 800;
 int WINDOW_HEIGHT = 600;
-
 int N = 4096;
-
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
@@ -32,7 +29,6 @@ Target target(glm::vec3(1.0f, 0.0f, -1.0f), glm::vec3(0.0f), 0.1f);
 
 extern cudaError_t initGenerators(curandState_t *randoms, int size);
 extern cudaError_t calculatePSO(Particle *particles, float *bests, curandState_t *randoms, int size, KinematicChainCuda chain, float3 targetPosition, Config config, Coordinates *result);
-extern cudaError_t testNodeCuda(NodeCUDA* chain);
 
 GLFWwindow* initOpenGLContext();
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
@@ -56,10 +52,10 @@ int main(int argc, char** argv)
 		N = atoi(argv[1]);
 	}
 
-	OriginNode* nodeArm = new OriginNode(glm::vec3(1.0f), glm::vec3(0.0f, -1.57f, 0.0f));
-	Node* nodeElbow = new Node(glm::vec3(0.0f, 1.57f, 0.0f), 1.0f);
-	EffectorNode* nodeWrist = new EffectorNode(glm::vec3(0.0f, 1.57f, 0.0f), 1.0f);
-	EffectorNode* nodeWrist2 = new EffectorNode(glm::vec3(0.0f, 0.0f, 1.57f), 1.0f);
+	OriginNode* nodeArm = new OriginNode(glm::vec3(-0.25f), glm::vec3(0.0f), glm::vec3(0.0f), glm::vec3(0.0f, -1.57f, 0.0f));
+	Node* nodeElbow = new Node(glm::vec3(0.0f, 1.57f, 0.0f), glm::vec3(0.0f), glm::vec3(0.0f), 2.0f);
+	EffectorNode* nodeWrist = new EffectorNode(glm::vec3(0.0f, 1.57f, 0.0f), glm::vec3(0.0f), glm::vec3(0.0f), 1.0f);
+	EffectorNode* nodeWrist2 = new EffectorNode(glm::vec3(0.0f, 0.0f, 1.57f), glm::vec3(0.0f), glm::vec3(0.0f), 1.0f);
 	/*Node *nodeArm, *nodeElbow, *nodeWrist, *nodeWrist2;
 	cudaMallocManaged(&nodeArm, sizeof(OriginNode));
 	cudaMallocManaged(&nodeElbow, sizeof(Node));
@@ -75,12 +71,11 @@ int main(int argc, char** argv)
 	nodeElbow->AttachChild(nodeWrist2);
 	
 	
-	//DO GLA XDDDDD
 
 	NodeCUDA* chainCuda = nodeArm->AllocateCUDA();
 	nodeArm->ToCUDA(chainCuda);
-	std::cout << chainCuda[0].position.x<< std::endl;
-	testNodeCuda(chainCuda);
+	std::cout << chainCuda[1].length << std::endl;
+	//testNodeCuda(chainCuda);
 	std::cout << chainCuda[0].position.x << std::endl;
 	cudaFree(chainCuda);
 
@@ -123,10 +118,10 @@ int main(int argc, char** argv)
 		shader.setMat4("view", view);
 		shader.setMat4("projection", glm::perspective(glm::radians(45.0f), (float)WINDOW_WIDTH / WINDOW_HEIGHT, 0.1f, 100.0f));
 		drawCoordinates(shader, coordVAO);
-		//drawLinks(arm, shader, linkVAO);
-		//drawArm(arm, shader, VAO);
-		//drawTarget(target, shader, VAO);
-		nodeArm->Draw(shader, VAO);
+		drawLinks(arm, shader, linkVAO);
+		drawArm(arm, shader, VAO);
+		drawTarget(target, shader, VAO);
+		//nodeArm->Draw(shader, VAO);
 
 		glfwSwapBuffers(window);
 	}

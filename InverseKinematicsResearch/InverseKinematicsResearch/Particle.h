@@ -1,7 +1,7 @@
 #pragma once
 #include <stdio.h>
 #include <vector_types.h>
-//#define DEGREES_OF_FREEDOM 6
+#define DEGREES_OF_FREEDOM 9
 
 enum NodeType
 {
