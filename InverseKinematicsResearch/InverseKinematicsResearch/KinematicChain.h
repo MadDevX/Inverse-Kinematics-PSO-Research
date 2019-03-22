@@ -30,8 +30,6 @@ float3 fromGLM(glm::vec3 vector)
 
 class KinematicChain
 {
-private:
-	float PI = glm::pi<float>();
 
 public:
 	glm::vec3 _minElbow = glm::vec3(0.0f, 0.0f, 0.0f);
