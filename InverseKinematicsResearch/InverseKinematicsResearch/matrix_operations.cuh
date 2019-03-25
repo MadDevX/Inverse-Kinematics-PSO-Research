@@ -142,7 +142,7 @@ __device__ Matrix rotateEuler(Matrix left, float x, float y, float z)
 
 __device__ Matrix rotateMatrix(Matrix left, float4 quaternion)
 {
-	return createMatrix(1.0f);
+	return multiplyMatrices(left, quaternionToMatrix(quaternion));
 }
 
 __device__ float magnitudeSqr(float3 vector)

@@ -19,8 +19,20 @@ __device__ float4 eulerToQuaternion(float3 eulerAngles)
 	return q;
 }
 
-__device__ float3 quaternionToEuler(float4 quaternion)
+__device__ float3 quaternionToEuler(float4 q)
 {
-	float3 ret;
-	return ret;
+	float3 angles;
+	float dividend, divisor;
+
+	dividend = 2.0f * (q.w*q.x + q.y*q.z);
+	divisor = 1.0f - 2.0f*(q.x*q.x + q.y*q.y);
+	angles.x = atanf(dividend/divisor);
+
+	angles.y = asinf(2.0f * (q.w*q.y - q.z*q.x));
+
+	dividend = 2.0f * (q.w*q.z + q.y*q.x);
+	divisor = 1.0f - 2.0f*(q.z*q.z + q.y*q.y);
+	angles.z = atanf(dividend / divisor);
+
+	return angles;
 }
