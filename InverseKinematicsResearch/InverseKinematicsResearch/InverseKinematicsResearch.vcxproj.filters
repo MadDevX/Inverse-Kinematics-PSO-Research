@@ -45,5 +45,9 @@
     <ClInclude Include="quaternion_operations.cuh">
       <Filter>Operations</Filter>
     </ClInclude>
+    <ClInclude Include="utility_kernels.cuh">
+      <Filter>Operations</Filter>
+    </ClInclude>
+    <ClInclude Include="ik_constants.h" />
   </ItemGroup>
 </Project>

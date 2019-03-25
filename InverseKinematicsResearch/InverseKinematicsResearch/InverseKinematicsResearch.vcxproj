@@ -103,12 +103,14 @@
     <None Include="3.3.jointShader.vert" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="ik_constants.h" />
     <ClInclude Include="KinematicChain.h" />
     <ClInclude Include="matrix_operations.cuh" />
     <ClInclude Include="Models.h" />
     <ClInclude Include="Node.h" />
     <ClInclude Include="Particle.h" />
     <ClInclude Include="quaternion_operations.cuh" />
+    <ClInclude Include="utility_kernels.cuh" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
