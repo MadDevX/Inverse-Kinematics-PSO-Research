@@ -16,13 +16,6 @@ __constant__ float locality = -0.1f;
 __constant__ float angleWeight = 0.05f;
 __constant__ float errorThreshold = 0.1f;
 
-struct ParticleNew
-{
-	float positions[DEGREES_OF_FREEDOM];
-	float velocities[DEGREES_OF_FREEDOM];
-	float localBest[DEGREES_OF_FREEDOM];
-};
-
 __device__ float calculateDistance(KinematicChainCuda chain, Particle particle, float3 targetPosition)
 {
 	Matrix model = createMatrix(1.0f);

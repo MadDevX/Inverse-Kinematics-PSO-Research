@@ -48,12 +48,15 @@ struct Coordinates
 	float elbowRotZ = 0.0f;
 };
 
+struct ParticleNew
+{
+	float positions[DEGREES_OF_FREEDOM];
+	float velocities[DEGREES_OF_FREEDOM];
+	float localBest[DEGREES_OF_FREEDOM];
+};
+
 struct Particle
 {
-	//float positions[DEGREES_OF_FREEDOM];
-	//float velocities[DEGREES_OF_FREEDOM];
-	//float localBest[DEGREES_OF_FREEDOM];
-
 	Coordinates positions;
 	Coordinates velocities;
 	Coordinates localBest;
