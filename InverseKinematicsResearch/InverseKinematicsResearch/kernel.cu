@@ -188,7 +188,7 @@ __global__ void initParticlesNewKernel(ParticleNew *particles, float *localBests
 
 }
 
-__global__ void initParticlesNewKernel(Particle *particles, float *localBests, curandState_t *randoms, KinematicChainCuda chain, float3 targetPosition, int size)
+__global__ void initParticlesKernel(Particle *particles, float *localBests, curandState_t *randoms, KinematicChainCuda chain, float3 targetPosition, int size)
 {
 	int id = threadIdx.x + blockIdx.x * blockDim.x;
 	int stride = gridDim.x * blockDim.x;
