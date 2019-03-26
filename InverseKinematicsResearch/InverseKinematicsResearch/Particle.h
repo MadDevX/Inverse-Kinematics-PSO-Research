@@ -48,6 +48,40 @@ struct Coordinates
 	float elbowRotZ = 0.0f;
 };
 
+struct CoordinatesNew
+{
+	float positions[DEGREES_OF_FREEDOM];
+
+	CoordinatesNew()
+	{
+		for (int i = 0; i < DEGREES_OF_FREEDOM; i++)
+		{
+			positions[i] = 0.0f;
+		}
+	}
+
+	CoordinatesNew(const CoordinatesNew &coords)
+	{
+		for (int i = 0; i < DEGREES_OF_FREEDOM; i++)
+		{
+			positions[i] = coords.positions[i];
+		}
+	}
+
+	CoordinatesNew& operator=(const CoordinatesNew &coords)
+	{
+		for (int i = 0; i < DEGREES_OF_FREEDOM; i++)
+		{
+			positions[i] = coords.positions[i];
+		}
+		return *this;
+	}
+
+	~CoordinatesNew()
+	{
+	}
+};
+
 struct ParticleNew
 {
 	float positions[DEGREES_OF_FREEDOM];

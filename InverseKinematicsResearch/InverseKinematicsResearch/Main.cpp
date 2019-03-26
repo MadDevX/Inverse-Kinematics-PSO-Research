@@ -29,7 +29,7 @@ Target target(glm::vec3(1.0f, 0.0f, -1.0f), glm::vec3(0.0f), 0.1f);
 
 extern cudaError_t initGenerators(curandState_t *randoms, int size);
 extern cudaError_t calculatePSO(Particle *particles, float *bests, curandState_t *randoms, int size, KinematicChainCuda chain, float3 targetPosition, Config config, Coordinates *result);
-extern cudaError_t calculatePSONew(ParticleNew *particles, float *bests, curandState_t *randoms, int size, NodeCUDA *chain, Config config, float *result);
+extern cudaError_t calculatePSONew(ParticleNew *particles, float *bests, curandState_t *randoms, int size, NodeCUDA *chain, Config config, CoordinatesNew *result);
 
 GLFWwindow* initOpenGLContext();
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
@@ -101,10 +101,10 @@ int main(int argc, char** argv)
 		glfwPollEvents();
 
 		cudaError_t status;
-		float coords[DEGREES_OF_FREEDOM];
+		CoordinatesNew coords;
 		//status = calculatePSO(particles, bests, randoms, N, arm.toCuda(), fromGLM(target._position), config, &coords);
 		nodeArm->ToCUDA(chainCuda);
-		status = calculatePSONew(particles, bests, randoms, N, chainCuda, config, coords);
+		status = calculatePSONew(particles, bests, randoms, N, chainCuda, config, &coords);
 		if (status != cudaSuccess) break;
 
 		int ind = 1;

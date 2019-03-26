@@ -135,7 +135,7 @@ __global__ void simulateParticlesKernel(Particle *particles, float *bests, curan
 	}
 }
 
-__global__ void simulateParticlesNewKernel(ParticleNew *particles, float *bests, curandState_t *randoms, int size, NodeCUDA *chain, Config config, float *global, float globalMin)
+__global__ void simulateParticlesNewKernel(ParticleNew *particles, float *bests, curandState_t *randoms, int size, NodeCUDA *chain, Config config, CoordinatesNew global, float globalMin)
 {
 	int id = threadIdx.x + blockIdx.x * blockDim.x;
 	int stride = gridDim.x * blockDim.x;
@@ -148,7 +148,7 @@ __global__ void simulateParticlesNewKernel(ParticleNew *particles, float *bests,
 		{
 			particles[i].velocities[deg] = config._inertia * particles[i].velocities[deg] +
 				config._local * curand_uniform(&randoms[i]) * (particles[i].localBest[deg] - particles[i].positions[deg]) +
-				config._global * curand_uniform(&randoms[i]) * (global[deg]- particles[i].positions[deg]);
+				config._global * curand_uniform(&randoms[i]) * (global.positions[deg]- particles[i].positions[deg]);
 
 			particles[i].positions[deg] += particles[i].velocities[deg];
 
@@ -309,7 +309,7 @@ cudaError_t calculatePSO(Particle *particles, float *bests, curandState_t *rando
 	return status;
 }
 
-cudaError_t calculatePSONew(ParticleNew *particles, float *bests, curandState_t *randoms, int size, NodeCUDA *chain, Config config, float *result)
+cudaError_t calculatePSONew(ParticleNew *particles, float *bests, curandState_t *randoms, int size, NodeCUDA *chain, Config config, CoordinatesNew *result)
 {
 	cudaError_t status;
 	int numBlocks = (size + blockSize - 1) / blockSize;
@@ -318,7 +318,7 @@ cudaError_t calculatePSONew(ParticleNew *particles, float *bests, curandState_t 
 	if (status != cudaSuccess) return status;
 	checkCuda(status = cudaDeviceSynchronize());
 
-	float global[DEGREES_OF_FREEDOM];
+	CoordinatesNew global;
 	float globalMin;
 
 	float *globalBest = thrust::min_element(thrust::host, bests, bests + size);
@@ -326,7 +326,7 @@ cudaError_t calculatePSONew(ParticleNew *particles, float *bests, curandState_t 
 
 	for (int deg = 0; deg < DEGREES_OF_FREEDOM; deg++)
 	{
-		global[deg] = particles[globalIndex].localBest[deg];
+		global.positions[deg] = particles[globalIndex].localBest[deg];
 	}
 	
 	globalMin = bests[globalIndex];
@@ -343,13 +343,13 @@ cudaError_t calculatePSONew(ParticleNew *particles, float *bests, curandState_t 
 
 		for (int deg = 0; deg < DEGREES_OF_FREEDOM; deg++)
 		{
-			global[deg] = particles[globalIndex].localBest[deg];
+			global.positions[deg] = particles[globalIndex].localBest[deg];
 		}
 
 		globalMin = bests[globalIndex];
 	}
 
-	result = global;
+	*result = global;
 
 	return status;
 }

@@ -91,10 +91,10 @@ public:
 		return nodeC;
 	}
 
-	void FromCoords(float *coords, int *nodeIndex)
+	void FromCoords(CoordinatesNew coords, int *nodeIndex)
 	{
 		int coordIndex = (*nodeIndex - 1) * 3;
-		this->rotation = glm::quat(glm::vec3(coords[coordIndex], coords[coordIndex + 1], coords[coordIndex + 2]));
+		this->rotation = glm::quat(glm::vec3(coords.positions[coordIndex], coords.positions[coordIndex + 1], coords.positions[coordIndex + 2]));
 		(*nodeIndex)++;
 
 		for (int i = 0; i < link.children.size(); i++)
