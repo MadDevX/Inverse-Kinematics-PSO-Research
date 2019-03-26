@@ -73,7 +73,7 @@ public:
 		}
 		else
 		{
-			return link.parent->GetModelMatrix()* glm::mat4_cast(rotation) * glm::translate(glm::mat4(1.0f), glm::vec3(link.length, 0.0f, 0.0f)) ;
+			return link.parent->GetModelMatrix() * glm::mat4_cast(rotation) * glm::translate(glm::mat4(1.0f), glm::vec3(link.length, 0.0f, 0.0f));
 		}
 	}
 
@@ -89,6 +89,18 @@ public:
 		int nodeCount = 1 + this->CountChildren();
 		cudaMallocManaged(&nodeC, nodeCount * sizeof(NodeCUDA));
 		return nodeC;
+	}
+
+	void FromCoords(float *coords, int *nodeIndex)
+	{
+		int coordIndex = (*nodeIndex - 1) * 3;
+		this->rotation = glm::quat(glm::vec3(coords[coordIndex], coords[coordIndex + 1], coords[coordIndex + 2]));
+		(*nodeIndex)++;
+
+		for (int i = 0; i < link.children.size(); i++)
+		{
+			link.children[i]->FromCoords(coords, nodeIndex);
+		}
 	}
 
 #pragma endregion
