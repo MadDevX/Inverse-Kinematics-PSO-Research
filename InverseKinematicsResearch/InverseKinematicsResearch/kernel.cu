@@ -37,17 +37,18 @@ __device__ float calculateDistance(KinematicChainCuda chain, Particle particle, 
 
 __device__ Matrix calculateModelMatrix(NodeCUDA *chain, int nodeIndex)
 {
-	if (nodeIndex == -1)
-	{
-		return createMatrix(1.0f);
+	if (nodeIndex == 0)
+	{	
+		Matrix matrix = createMatrix(1.0f);
+		matrix = translateMatrix(matrix, chain[nodeIndex].position);
+		matrix = rotateMatrix(matrix, chain[nodeIndex].rotation);
+		return matrix;
 	}
 	else
 	{
 		Matrix matrix = calculateModelMatrix(chain, chain[nodeIndex].parentIndex);
-		//tranlsacja matrix
-		//DO ZROBIENIA XDDDDDDDDDD
-
-		//rotacja matrix
+		matrix = rotateMatrix(matrix, chain[nodeIndex].rotation);
+		matrix = translateMatrix(matrix, make_float3(chain[nodeIndex].length,0.0f,0.0f));
 		return matrix;
 	}
 }
