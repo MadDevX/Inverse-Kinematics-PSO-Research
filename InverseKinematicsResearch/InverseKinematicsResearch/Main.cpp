@@ -29,11 +29,12 @@ Target target(glm::vec3(1.0f, 0.0f, -1.0f), glm::vec3(0.0f), 0.1f);
 
 extern cudaError_t initGenerators(curandState_t *randoms, int size);
 extern cudaError_t calculatePSO(Particle *particles, float *bests, curandState_t *randoms, int size, KinematicChainCuda chain, float3 targetPosition, Config config, Coordinates *result);
+extern cudaError_t calculatePSONew(ParticleNew *particles, float *bests, curandState_t *randoms, int size, NodeCUDA *chain, Config config, float *result);
 
 GLFWwindow* initOpenGLContext();
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
-void processInput(GLFWwindow *window);
+void processInput(GLFWwindow *window,TargetNode *target);
 void calculateDeltaTime();
 unsigned int initVAO(unsigned int *VBO);
 unsigned int initCoordVAO(unsigned int *VBO);
@@ -56,22 +57,16 @@ int main(int argc, char** argv)
 	Node* nodeElbow = new Node(glm::vec3(0.0f, 1.57f, 0.0f), glm::vec3(0.0f), glm::vec3(0.0f), 2.0f);
 	EffectorNode* nodeWrist = new EffectorNode(glm::vec3(0.0f, 1.57f, 0.0f), glm::vec3(0.0f), glm::vec3(0.0f), 1.0f);
 	EffectorNode* nodeWrist2 = new EffectorNode(glm::vec3(0.0f, 0.0f, 1.57f), glm::vec3(0.0f), glm::vec3(0.0f), 1.0f);
-	/*Node *nodeArm, *nodeElbow, *nodeWrist, *nodeWrist2;
-	cudaMallocManaged(&nodeArm, sizeof(OriginNode));
-	cudaMallocManaged(&nodeElbow, sizeof(Node));
-	cudaMallocManaged(&nodeWrist, sizeof(EffectorNode));
-	cudaMallocManaged(&nodeWrist2, sizeof(EffectorNode));
-	cudaMemcpy(nodeArm, &OriginNode(glm::vec3(0.0f), glm::vec3(0.0f, -1.57f, 0.0f)), sizeof(OriginNode), cudaMemcpyHostToHost);
-	cudaMemcpy(nodeElbow, &Node(glm::vec3(0.0f, 1.57f, 0.0f), 1.0f), sizeof(Node), cudaMemcpyHostToHost);
-	cudaMemcpy(nodeWrist, &EffectorNode(glm::vec3(0.0f, 1.57f, 0.0f), 1.0f), sizeof(EffectorNode), cudaMemcpyHostToHost);
-	cudaMemcpy(nodeWrist2, &EffectorNode(glm::vec3(0.0f, 0.0f, 1.57f), 1.0f), sizeof(EffectorNode), cudaMemcpyHostToHost);
-*/
+
+	TargetNode* nodeTarget1 = new TargetNode(glm::vec3(1.0f, 1.0f, -1.5f));
+	TargetNode* nodeTarget2 = new TargetNode(glm::vec3(-1.0f, 1.0f, -1.5f));;
+	nodeWrist->target = nodeTarget1;
+	nodeWrist2->target = nodeTarget2;
+
 	nodeArm->AttachChild(nodeElbow);
 	nodeElbow->AttachChild(nodeWrist);
 	nodeElbow->AttachChild(nodeWrist2);
 	
-	
-
 	NodeCUDA* chainCuda = nodeArm->AllocateCUDA();
 	nodeArm->ToCUDA(chainCuda);
 	std::cout << chainCuda[1].length << std::endl;
@@ -82,6 +77,7 @@ int main(int argc, char** argv)
 	GLFWwindow* window = initOpenGLContext();
 	Shader shader("3.3.jointShader.vert", "3.3.jointShader.frag");
 	updateLinkVertices(arm);
+
 	unsigned int VBO, coordVBO, linkVBO;
 	unsigned int VAO = initVAO(&VBO);
 	unsigned int coordVAO = initCoordVAO(&coordVBO);
@@ -89,8 +85,8 @@ int main(int argc, char** argv)
 
 	curandState_t *randoms;
 	cudaMalloc((void**)&randoms, N * sizeof(curandState_t));
-	Particle *particles;
-	cudaMallocManaged((void**)&particles, N * sizeof(Particle));
+	ParticleNew *particles;
+	cudaMallocManaged((void**)&particles, N * sizeof(ParticleNew));
 	float *bests;
 	cudaMallocManaged((void**)&bests, N * sizeof(float));
 
@@ -101,16 +97,21 @@ int main(int argc, char** argv)
 	{
 		calculateDeltaTime();
 
-		processInput(window);
+		processInput(window,nodeTarget1);
 		glfwPollEvents();
 
 		cudaError_t status;
-		Coordinates coords;
-		status = calculatePSO(particles, bests, randoms, N, arm.toCuda(), fromGLM(target._position), config, &coords);
+		float coords[DEGREES_OF_FREEDOM];
+		//status = calculatePSO(particles, bests, randoms, N, arm.toCuda(), fromGLM(target._position), config, &coords);
+		nodeArm->ToCUDA(chainCuda);
+		status = calculatePSONew(particles, bests, randoms, N, chainCuda, config, coords);
 		if (status != cudaSuccess) break;
 
-		arm.fromCoords(coords);
-		updateLinkBuffer(arm, linkVBO);
+		int ind = 1;
+		nodeArm->FromCoords(coords,&ind);
+
+		//arm.fromCoords(coords);
+		//updateLinkBuffer(arm, linkVBO);
 		glClearColor(0.3f, 0.3f, 0.3f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		
@@ -118,14 +119,18 @@ int main(int argc, char** argv)
 		shader.setMat4("view", view);
 		shader.setMat4("projection", glm::perspective(glm::radians(45.0f), (float)WINDOW_WIDTH / WINDOW_HEIGHT, 0.1f, 100.0f));
 		drawCoordinates(shader, coordVAO);
-		drawLinks(arm, shader, linkVAO);
+		/*	drawLinks(arm, shader, linkVAO);
 		drawArm(arm, shader, VAO);
 		drawTarget(target, shader, VAO);
-		//nodeArm->Draw(shader, VAO);
+		*/
+		nodeArm->Draw(shader, VAO);
+		nodeTarget1->DrawCurrent(shader,VAO);
+		nodeTarget2->DrawCurrent(shader, VAO);
 
 		glfwSwapBuffers(window);
 	}
-
+	
+	#pragma region cleanup
 	glDeleteVertexArrays(1, &VAO);
 	glDeleteVertexArrays(1, &coordVAO);
 	glDeleteVertexArrays(1, &linkVAO);
@@ -135,15 +140,18 @@ int main(int argc, char** argv)
 
 	glfwTerminate();
 
-
 	cudaFree(randoms);
 	cudaFree(particles);
 	cudaFree(bests);
-	cudaFree(nodeArm);
-	cudaFree(nodeElbow);
-	cudaFree(nodeWrist);
-	cudaFree(nodeWrist2);
+	delete(nodeArm);
+	delete(nodeElbow);
+	delete(nodeWrist);
+	delete(nodeWrist2);
+	delete(nodeTarget1);
+	delete(nodeTarget1);
+	#pragma endregion
 
+	
 	return 0;
 }
 
@@ -304,7 +312,7 @@ void configureGLFWContext()
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 }
 
-void processInput(GLFWwindow *window)
+void processInput(GLFWwindow *window,TargetNode *target)
 {
 	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
 		glfwSetWindowShouldClose(window, true);
@@ -317,17 +325,17 @@ void processInput(GLFWwindow *window)
 	if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)
 		arm.translateShoulder(glm::vec3(0.0f, -1.0f, 0.0f) * deltaTime);
 	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-		target.translate(glm::vec3(-1.0f, 0.0f, 0.0f) * deltaTime);
+		target->translate(glm::vec3(-1.0f, 0.0f, 0.0f) * deltaTime);
 	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-		target.translate(glm::vec3(1.0f, 0.0f, 0.0f) * deltaTime);
+		target->translate(glm::vec3(1.0f, 0.0f, 0.0f) * deltaTime);
 	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-		target.translate(glm::vec3(0.0f, 1.0f, 0.0f) * deltaTime);
+		target->translate(glm::vec3(0.0f, 1.0f, 0.0f) * deltaTime);
 	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-		target.translate(glm::vec3(0.0f, -1.0f, 0.0f) * deltaTime);
+		target->translate(glm::vec3(0.0f, -1.0f, 0.0f) * deltaTime);
 	if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
-		target.translate(glm::vec3(0.0f, 0.0f, 1.0f) * deltaTime);
+		target->translate(glm::vec3(0.0f, 0.0f, 1.0f) * deltaTime);
 	if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS)
-		target.translate(glm::vec3(0.0f, 0.0f, -1.0f) * deltaTime);
+		target->translate(glm::vec3(0.0f, 0.0f, -1.0f) * deltaTime);
 	if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_MIDDLE) == GLFW_PRESS)
 	{
 		rotate = true;

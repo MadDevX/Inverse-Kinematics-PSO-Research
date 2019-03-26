@@ -266,6 +266,12 @@ public:
 		return glm::translate(glm::mat4(1.0f), position) * glm::mat4_cast(rotation);
 	}
 
+	TargetNode(glm::vec3 position = glm::vec3(0.0f), glm::vec3 rotation = glm::vec3(0.0f))
+	{
+		this->position = position;
+		this->rotation = glm::quat(rotation);
+	}
+
 	void DrawCurrent(Shader shader, unsigned int VAO)
 	{
 		shader.use();
@@ -275,6 +281,12 @@ public:
 		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 		glDrawArrays(GL_TRIANGLES, 0, 36);
 	}
+
+	void translate(glm::vec3 translation)
+	{
+		position += translation;
+	}
+
 };
 
 
