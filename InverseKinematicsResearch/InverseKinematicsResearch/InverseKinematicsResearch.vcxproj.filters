@@ -49,5 +49,8 @@
       <Filter>Operations</Filter>
     </ClInclude>
     <ClInclude Include="ik_constants.h" />
+    <ClInclude Include="vector_operations.cuh">
+      <Filter>Operations</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
