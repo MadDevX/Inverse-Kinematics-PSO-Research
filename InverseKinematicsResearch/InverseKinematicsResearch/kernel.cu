@@ -59,8 +59,7 @@ __device__ float calculateDistanceNew(NodeCUDA *chain, ParticleNew particle)
 {
 	float4 quaternionDifference = make_float4(0.0f, 0.0f, 0.0f, 0.0f);
 	float3 targetDiff = make_float3(0.0f, 0.0f, 0.0f);
-	
-	//ind = 0 is origin which is excluded here
+
 	for(int ind = 1; ind <= DEGREES_OF_FREEDOM / 3; ind++)
 	{
 		float4 chainQuaternion = chain[ind].rotation;
@@ -80,7 +79,6 @@ __device__ float calculateDistanceNew(NodeCUDA *chain, ParticleNew particle)
 			targetDiff = targetDiff + make_float3(position.x - chain[ind].targetPosition.x, position.y - chain[ind].targetPosition.y, position.z - chain[ind].targetPosition.z);
 		}
 		
-
 	}
 
 	float distance = magnitudeSqr(targetDiff);
@@ -137,7 +135,51 @@ __global__ void simulateParticlesKernel(Particle *particles, float *bests, curan
 	}
 }
 
-//__global__ void simulateParticlesNewKernel()
+__global__ void simulateParticlesNewKernel(ParticleNew *particles, float *bests, curandState_t *randoms, int size, NodeCUDA *chain, Config config, float *global, float globalMin)
+{
+	int id = threadIdx.x + blockIdx.x * blockDim.x;
+	int stride = gridDim.x * blockDim.x;
+
+	for (int i = id; i < size; i += stride)
+	{
+
+		
+		for (int deg = 0; deg < DEGREES_OF_FREEDOM; deg++)
+		{
+			particles[i].velocities[deg] = config._inertia * particles[i].velocities[deg] +
+				config._local * curand_uniform(&randoms[i]) * (particles[i].localBest[deg] - particles[i].positions[deg]) +
+				config._global * curand_uniform(&randoms[i]) * (global[deg]- particles[i].positions[deg]);
+
+			particles[i].positions[deg] += particles[i].velocities[deg];
+
+			
+		}
+
+		//Clamp
+		for (int ind = 1; ind <= DEGREES_OF_FREEDOM/3; ind++)
+		{
+			int deg = (ind - 1) * 3;
+			particles[i].positions[deg]   =   clamp(particles[i].positions[deg], chain[ind].minRotation.x, chain[ind].maxRotation.x);
+			particles[i].positions[deg + 1] = clamp(particles[i].positions[deg], chain[ind].minRotation.y, chain[ind].maxRotation.y);
+			particles[i].positions[deg + 2] = clamp(particles[i].positions[deg], chain[ind].minRotation.z, chain[ind].maxRotation.z);
+		}	
+
+		//Fitness function
+		float currentDistance = calculateDistanceNew(chain, particles[i]);
+		
+		//Update bests
+		if (currentDistance < bests[i])
+		{
+			
+			bests[i] = currentDistance;
+			for (int deg = 0; deg < DEGREES_OF_FREEDOM; deg++)
+			{
+				particles[i].localBest[deg] = particles[i].positions[deg];
+			}
+			
+		}
+	}
+}
 
 __global__ void initParticlesNewKernel(ParticleNew *particles, float *localBests, curandState_t *randoms, NodeCUDA * chain, int size)
 {
@@ -263,6 +305,51 @@ cudaError_t calculatePSO(Particle *particles, float *bests, curandState_t *rando
 	}
 
 	*result = global;
+
+	return status;
+}
+
+cudaError_t calculatePSONew(ParticleNew *particles, float *bests, curandState_t *randoms, int size, NodeCUDA *chain, Config config, float *result)
+{
+	cudaError_t status;
+	int numBlocks = (size + blockSize - 1) / blockSize;
+	initParticlesNewKernel << <numBlocks, blockSize >> > (particles, bests, randoms, chain, size);
+	checkCuda(status = cudaGetLastError());
+	if (status != cudaSuccess) return status;
+	checkCuda(status = cudaDeviceSynchronize());
+
+	float global[DEGREES_OF_FREEDOM];
+	float globalMin;
+
+	float *globalBest = thrust::min_element(thrust::host, bests, bests + size);
+	int globalIndex = globalBest - bests;
+
+	for (int deg = 0; deg < DEGREES_OF_FREEDOM; deg++)
+	{
+		global[deg] = particles[globalIndex].localBest[deg];
+	}
+	
+	globalMin = bests[globalIndex];
+
+	for (int i = 0; i < config._iterations; i++)
+	{
+		simulateParticlesNewKernel << <numBlocks, blockSize >> > (particles, bests, randoms, size, chain, config, global, globalMin);
+		checkCuda(status = cudaGetLastError());
+		if (status != cudaSuccess) return status;
+		checkCuda(status = cudaDeviceSynchronize());
+
+		globalBest = thrust::min_element(thrust::host, bests, bests + size);
+		globalIndex = globalBest - bests;
+
+		for (int deg = 0; deg < DEGREES_OF_FREEDOM; deg++)
+		{
+			global[deg] = particles[globalIndex].localBest[deg];
+		}
+
+		globalMin = bests[globalIndex];
+	}
+
+	result = global;
 
 	return status;
 }
