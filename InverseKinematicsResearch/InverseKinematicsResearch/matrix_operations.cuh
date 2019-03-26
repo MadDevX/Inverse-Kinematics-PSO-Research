@@ -145,11 +145,6 @@ __device__ Matrix rotateMatrix(Matrix left, float4 quaternion)
 	return multiplyMatrices(left, quaternionToMatrix(quaternion));
 }
 
-__device__ float magnitudeSqr(float3 vector)
-{
-	return (vector.x * vector.x) + (vector.y * vector.y) + (vector.z * vector.z);
-}
-
 __device__ float clamp(float value, float min, float max)
 {
 	return fminf(fmaxf(value, min), max);
