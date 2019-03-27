@@ -58,7 +58,7 @@ __device__ Matrix calculateModelMatrix(NodeCUDA *chain, int nodeIndex)
 __device__ float calculateDistanceNew(NodeCUDA *chain, ParticleNew particle)
 {
 	float quaternionDifference = 0.0f;
-	float3 targetDiff = make_float3(0.0f, 0.0f, 0.0f);
+	float distance = 0.0f;
 
 	for(int ind = 1; ind <= DEGREES_OF_FREEDOM / 3; ind++)
 	{
@@ -70,18 +70,18 @@ __device__ float calculateDistanceNew(NodeCUDA *chain, ParticleNew particle)
 		quaternionDifference = quaternionDifference + magnitudeSqr(chainQuaternion - particleQuaternionRotation);
 		
 		if (chain[ind].nodeType == NodeType::effectorNode)
-		{
-			//oblicz pozycje rekurencyjnie
+		{		
 			Matrix model = calculateModelMatrix(chain, ind);
-
 			float4 position = make_float4(0.0f, 0.0f, 0.0f, 1.0f);
 			position = multiplyMatByVec(model, position);
-			targetDiff = targetDiff + make_float3(position.x - chain[ind].targetPosition.x, position.y - chain[ind].targetPosition.y, position.z - chain[ind].targetPosition.z);
+
+			distance = distance + magnitudeSqr(make_float3(position.x - chain[ind].targetPosition.x,
+												  position.y - chain[ind].targetPosition.y,
+												  position.z - chain[ind].targetPosition.z));
 		}
 		
 	}
 
-	float distance = magnitudeSqr(targetDiff);
 	return distance + angleWeight * (quaternionDifference);
 }
 
@@ -196,8 +196,8 @@ __global__ void initParticlesNewKernel(ParticleNew *particles, float *localBests
 
 				float3 euler = quaternionToEuler(chain[(deg/3)+1].rotation);
 				particles[i].positions[deg] = euler.x;
-				particles[i].positions[deg+1] = euler.x;
-				particles[i].positions[deg+2] = euler.x;		
+				particles[i].positions[deg+1] = euler.y;
+				particles[i].positions[deg+2] = euler.z;		
 			}
 			
 		}
@@ -312,18 +312,19 @@ cudaError_t calculatePSO(Particle *particles, float *bests, curandState_t *rando
 cudaError_t calculatePSONew(ParticleNew *particles, float *bests, curandState_t *randoms, int size, NodeCUDA *chain, Config config, CoordinatesNew *result)
 {
 	cudaError_t status;
+	CoordinatesNew global;
+	float globalMin;
 	int numBlocks = (size + blockSize - 1) / blockSize;
+
 	initParticlesNewKernel << <numBlocks, blockSize >> > (particles, bests, randoms, chain, size);
 	checkCuda(status = cudaGetLastError());
 	if (status != cudaSuccess) return status;
 	checkCuda(status = cudaDeviceSynchronize());
 
-	CoordinatesNew global;
-	float globalMin;
 
 	float *globalBest = thrust::min_element(thrust::host, bests, bests + size);
 	int globalIndex = globalBest - bests;
-
+	printf("global index = %d \n", globalIndex);
 	for (int deg = 0; deg < DEGREES_OF_FREEDOM; deg++)
 	{
 		global.positions[deg] = particles[globalIndex].localBest[deg];
@@ -340,10 +341,11 @@ cudaError_t calculatePSONew(ParticleNew *particles, float *bests, curandState_t 
 
 		globalBest = thrust::min_element(thrust::host, bests, bests + size);
 		globalIndex = globalBest - bests;
-
+		printf("global index = %d  for i = %d\n", globalIndex,i);
 		for (int deg = 0; deg < DEGREES_OF_FREEDOM; deg++)
 		{
 			global.positions[deg] = particles[globalIndex].localBest[deg];
+			printf("%d-%d\n", deg + 1, global.positions[deg]);
 		}
 
 		globalMin = bests[globalIndex];
