@@ -238,7 +238,7 @@ protected:
 		node->position.x = this->position.x;
 		node->position.y = this->position.y;
 		node->position.z = this->position.z;
-		
+
 	}
 
 	virtual void DrawCurrent(Shader shader, unsigned int VAO)
@@ -304,7 +304,7 @@ protected:
 
 	void FillNodeCUDAtype(NodeCUDA* node) override
 	{
-		node->nodeType = NodeType::originNode;
+		node->nodeType = NodeType::effectorNode;
 		if (target != nullptr)
 		{
 			node->targetPosition.x = this->target->position.x;

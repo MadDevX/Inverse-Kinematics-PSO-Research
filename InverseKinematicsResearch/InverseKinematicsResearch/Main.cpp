@@ -53,13 +53,13 @@ int main(int argc, char** argv)
 		N = atoi(argv[1]);
 	}
 
-	OriginNode* nodeArm = new OriginNode(glm::vec3(-0.25f), glm::vec3(0.0f), glm::vec3(0.0f), glm::vec3(0.0f, -1.57f, 0.0f));
-	Node* nodeElbow = new Node(glm::vec3(0.0f, 1.57f, 0.0f), glm::vec3(0.0f), glm::vec3(0.0f), 2.0f);
-	EffectorNode* nodeWrist = new EffectorNode(glm::vec3(0.0f, 1.57f, 0.0f), glm::vec3(0.0f), glm::vec3(0.0f), 1.0f);
-	EffectorNode* nodeWrist2 = new EffectorNode(glm::vec3(0.0f, 0.0f, 1.57f), glm::vec3(0.0f), glm::vec3(0.0f), 1.0f);
+	OriginNode* nodeArm = new OriginNode(glm::vec3(-0.25f), glm::vec3(0.0f), glm::vec3(0.0f), glm::vec3(2*PI));
+	Node* nodeElbow = new Node(glm::vec3(0.0f, 1.57f, 0.0f), glm::vec3(0.0f), glm::vec3(2 * PI), 2.0f);
+	EffectorNode* nodeWrist = new EffectorNode(glm::vec3(0.0f, 1.57f, 0.0f), glm::vec3(0.0f), glm::vec3(2 * PI), 1.0f);
+	EffectorNode* nodeWrist2 = new EffectorNode(glm::vec3(0.0f, 0.0f, 1.57f), glm::vec3(0.0f), glm::vec3(2 * PI), 1.0f);
 
 	TargetNode* nodeTarget1 = new TargetNode(glm::vec3(1.0f, 1.0f, -1.5f));
-	TargetNode* nodeTarget2 = new TargetNode(glm::vec3(-1.0f, 1.0f, -1.5f));;
+	TargetNode* nodeTarget2 = new TargetNode(glm::vec3(-1.0f, 1.0f, -1.5f));
 	nodeWrist->target = nodeTarget1;
 	nodeWrist2->target = nodeTarget2;
 

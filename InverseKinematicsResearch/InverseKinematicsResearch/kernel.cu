@@ -57,7 +57,7 @@ __device__ Matrix calculateModelMatrix(NodeCUDA *chain, int nodeIndex)
 
 __device__ float calculateDistanceNew(NodeCUDA *chain, ParticleNew particle)
 {
-	float4 quaternionDifference = make_float4(0.0f, 0.0f, 0.0f, 0.0f);
+	float quaternionDifference = 0.0f;
 	float3 targetDiff = make_float3(0.0f, 0.0f, 0.0f);
 
 	for(int ind = 1; ind <= DEGREES_OF_FREEDOM / 3; ind++)
@@ -67,7 +67,7 @@ __device__ float calculateDistanceNew(NodeCUDA *chain, ParticleNew particle)
 			particle.positions[(ind - 1) * 3 + 1],
 			particle.positions[(ind - 1) * 3 + 2]));
 
-		quaternionDifference = quaternionDifference + (chainQuaternion - particleQuaternionRotation);
+		quaternionDifference = quaternionDifference + magnitudeSqr(chainQuaternion - particleQuaternionRotation);
 		
 		if (chain[ind].nodeType == NodeType::effectorNode)
 		{
@@ -82,7 +82,7 @@ __device__ float calculateDistanceNew(NodeCUDA *chain, ParticleNew particle)
 	}
 
 	float distance = magnitudeSqr(targetDiff);
-	return distance + angleWeight * (magnitudeSqr(quaternionDifference));
+	return distance + angleWeight * (quaternionDifference);
 }
 
 __global__ void simulateParticlesKernel(Particle *particles, float *bests, curandState_t *randoms, int size, KinematicChainCuda chain, float3 targetPosition, Config config, Coordinates global, float globalMin)
@@ -160,8 +160,8 @@ __global__ void simulateParticlesNewKernel(ParticleNew *particles, float *bests,
 		{
 			int deg = (ind - 1) * 3;
 			particles[i].positions[deg]   =   clamp(particles[i].positions[deg], chain[ind].minRotation.x, chain[ind].maxRotation.x);
-			particles[i].positions[deg + 1] = clamp(particles[i].positions[deg], chain[ind].minRotation.y, chain[ind].maxRotation.y);
-			particles[i].positions[deg + 2] = clamp(particles[i].positions[deg], chain[ind].minRotation.z, chain[ind].maxRotation.z);
+			particles[i].positions[deg + 1] = clamp(particles[i].positions[deg+1], chain[ind].minRotation.y, chain[ind].maxRotation.y);
+			particles[i].positions[deg + 2] = clamp(particles[i].positions[deg+2], chain[ind].minRotation.z, chain[ind].maxRotation.z);
 		}	
 
 		//Fitness function
