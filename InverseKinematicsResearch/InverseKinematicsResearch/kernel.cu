@@ -53,8 +53,6 @@ __device__ Matrix calculateModelMatrix(NodeCUDA *chain, int nodeIndex)
 	}
 }
 
-
-
 __device__ float calculateDistanceNew(NodeCUDA *chain, ParticleNew particle)
 {
 	float quaternionDifference = 0.0f;
@@ -85,56 +83,6 @@ __device__ float calculateDistanceNew(NodeCUDA *chain, ParticleNew particle)
 	return distance + angleWeight * (quaternionDifference);
 }
 
-__global__ void simulateParticlesKernel(Particle *particles, float *bests, curandState_t *randoms, int size, KinematicChainCuda chain, float3 targetPosition, Config config, Coordinates global, float globalMin)
-{
-	int id = threadIdx.x + blockIdx.x * blockDim.x;
-	int stride = gridDim.x * blockDim.x;
-
-	for (int i = id; i < size; i += stride)
-	{
-		particles[i].velocities.shoulderRotX = config._inertia * particles[i].velocities.shoulderRotX +
-											   config._local * curand_uniform(&randoms[i]) * (particles[i].localBest.shoulderRotX - particles[i].positions.shoulderRotX) +
-											   config._global * curand_uniform(&randoms[i]) * (global.shoulderRotX - particles[i].positions.shoulderRotX);
-		particles[i].velocities.shoulderRotY = config._inertia * particles[i].velocities.shoulderRotY +
-											   config._local * curand_uniform(&randoms[i]) * (particles[i].localBest.shoulderRotY - particles[i].positions.shoulderRotY) +
-											   config._global * curand_uniform(&randoms[i]) * (global.shoulderRotY - particles[i].positions.shoulderRotY);
-		particles[i].velocities.shoulderRotZ = config._inertia * particles[i].velocities.shoulderRotZ +
-											   config._local * curand_uniform(&randoms[i]) * (particles[i].localBest.shoulderRotZ - particles[i].positions.shoulderRotZ) +
-											   config._global * curand_uniform(&randoms[i]) * (global.shoulderRotZ - particles[i].positions.shoulderRotZ);
-		particles[i].velocities.elbowRotX =    config._inertia * particles[i].velocities.elbowRotX +
-											   config._local * curand_uniform(&randoms[i]) * (particles[i].localBest.elbowRotX - particles[i].positions.elbowRotX) +
-											   config._global * curand_uniform(&randoms[i]) * (global.elbowRotX - particles[i].positions.elbowRotX);
-		particles[i].velocities.elbowRotY =    config._inertia * particles[i].velocities.elbowRotY +
-											   config._local * curand_uniform(&randoms[i]) * (particles[i].localBest.elbowRotY - particles[i].positions.elbowRotY) +
-											   config._global * curand_uniform(&randoms[i]) * (global.elbowRotY - particles[i].positions.elbowRotY);
-		particles[i].velocities.elbowRotZ =    config._inertia * particles[i].velocities.elbowRotZ +
-											   config._local * curand_uniform(&randoms[i]) * (particles[i].localBest.elbowRotZ - particles[i].positions.elbowRotZ) +
-											   config._global * curand_uniform(&randoms[i]) * (global.elbowRotZ - particles[i].positions.elbowRotZ);
-
-		particles[i].positions.shoulderRotX += particles[i].velocities.shoulderRotX;
-		particles[i].positions.shoulderRotY += particles[i].velocities.shoulderRotY;
-		particles[i].positions.shoulderRotZ += particles[i].velocities.shoulderRotZ;
-		particles[i].positions.elbowRotX += particles[i].velocities.elbowRotX;
-		particles[i].positions.elbowRotY += particles[i].velocities.elbowRotY;
-		particles[i].positions.elbowRotZ += particles[i].velocities.elbowRotZ;
-
-		particles[i].positions.shoulderRotX = clamp(particles[i].positions.shoulderRotX, chain._minShoulder.x, chain._maxShoulder.x);
-		particles[i].positions.shoulderRotY	= clamp(particles[i].positions.shoulderRotY, chain._minShoulder.y, chain._maxShoulder.y);
-		particles[i].positions.shoulderRotZ	= clamp(particles[i].positions.shoulderRotZ, chain._minShoulder.z, chain._maxShoulder.z);
-		particles[i].positions.elbowRotX	= clamp(particles[i].positions.elbowRotX, chain._minElbow.x, chain._maxElbow.x);
-		particles[i].positions.elbowRotY	= clamp(particles[i].positions.elbowRotY, chain._minElbow.y, chain._maxElbow.y);
-		particles[i].positions.elbowRotZ	= clamp(particles[i].positions.elbowRotZ, chain._minElbow.z, chain._maxElbow.z);
-
-
-		float currentDistance = calculateDistance(chain, particles[i], targetPosition);
-		if (currentDistance < bests[i])
-		{
-			bests[i] = currentDistance;
-			particles[i].localBest = particles[i].positions;
-		}
-	}
-}
-
 __global__ void simulateParticlesNewKernel(ParticleNew *particles, float *bests, curandState_t *randoms, int size, NodeCUDA *chain, Config config, CoordinatesNew global, float globalMin)
 {
 	int id = threadIdx.x + blockIdx.x * blockDim.x;
@@ -155,7 +103,6 @@ __global__ void simulateParticlesNewKernel(ParticleNew *particles, float *bests,
 			
 		}
 
-		//Clamp
 		for (int ind = 1; ind <= DEGREES_OF_FREEDOM/3; ind++)
 		{
 			int deg = (ind - 1) * 3;
@@ -163,11 +110,8 @@ __global__ void simulateParticlesNewKernel(ParticleNew *particles, float *bests,
 			particles[i].positions[deg + 1] = clamp(particles[i].positions[deg+1], chain[ind].minRotation.y, chain[ind].maxRotation.y);
 			particles[i].positions[deg + 2] = clamp(particles[i].positions[deg+2], chain[ind].minRotation.z, chain[ind].maxRotation.z);
 		}	
-
-		//Fitness function
 		float currentDistance = calculateDistanceNew(chain, particles[i]);
 		
-		//Update bests
 		if (currentDistance < bests[i])
 		{
 			
@@ -175,11 +119,13 @@ __global__ void simulateParticlesNewKernel(ParticleNew *particles, float *bests,
 			for (int deg = 0; deg < DEGREES_OF_FREEDOM; deg++)
 			{
 				particles[i].localBest[deg] = particles[i].positions[deg];
+				
 			}
 			
 		}
 	}
 }
+
 
 __global__ void initParticlesNewKernel(ParticleNew *particles, float *localBests, curandState_t *randoms, NodeCUDA * chain, int size)
 {
@@ -230,84 +176,7 @@ __global__ void initParticlesNewKernel(ParticleNew *particles, float *localBests
 
 }
 
-__global__ void initParticlesKernel(Particle *particles, float *localBests, curandState_t *randoms, KinematicChainCuda chain, float3 targetPosition, int size)
-{
-	int id = threadIdx.x + blockIdx.x * blockDim.x;
-	int stride = gridDim.x * blockDim.x;
 
-	for (int i = id; i < size; i += stride)
-	{
-		if (curand_uniform(&randoms[i]) > locality)
-		{
-			
-			particles[i].positions.shoulderRotX = chain._shoulderRotation.x;
-			particles[i].positions.shoulderRotY = chain._shoulderRotation.y;
-			particles[i].positions.shoulderRotZ = chain._shoulderRotation.z;
-			particles[i].positions.elbowRotX = chain._elbowRotation.x;
-			particles[i].positions.elbowRotY = chain._elbowRotation.y;
-			particles[i].positions.elbowRotZ = chain._elbowRotation.z;
-		}
-		else
-		{
-			particles[i].positions.shoulderRotX = (curand_uniform(&randoms[i]) * (chain._maxShoulder.x - chain._minShoulder.x) + chain._minShoulder.x);
-			particles[i].positions.shoulderRotY = (curand_uniform(&randoms[i]) * (chain._maxShoulder.y - chain._minShoulder.y) + chain._minShoulder.y);
-			particles[i].positions.shoulderRotZ = (curand_uniform(&randoms[i]) * (chain._maxShoulder.z - chain._minShoulder.z) + chain._minShoulder.z);
-			particles[i].positions.elbowRotX = (curand_uniform(&randoms[i]) * (chain._maxElbow.x - chain._minElbow.x) + chain._minElbow.x);
-			particles[i].positions.elbowRotY = (curand_uniform(&randoms[i]) * (chain._maxElbow.y - chain._minElbow.y) + chain._minElbow.y);
-			particles[i].positions.elbowRotZ = (curand_uniform(&randoms[i]) * (chain._maxElbow.z - chain._minElbow.z) + chain._minElbow.z);
-		}
-
-		particles[i].velocities.shoulderRotX = curand_uniform(&randoms[i]) * 2.0f - 1.0f;
-		particles[i].velocities.shoulderRotY = curand_uniform(&randoms[i]) * 2.0f - 1.0f;
-		particles[i].velocities.shoulderRotZ = curand_uniform(&randoms[i]) * 2.0f - 1.0f;
-		particles[i].velocities.elbowRotX = curand_uniform(&randoms[i]) * 2.0f - 1.0f;
-		particles[i].velocities.elbowRotY = curand_uniform(&randoms[i]) * 2.0f - 1.0f;
-		particles[i].velocities.elbowRotZ = curand_uniform(&randoms[i]) * 2.0f - 1.0f;
-
-
-		particles[i].localBest.shoulderRotX = particles[i].positions.shoulderRotX;
-		particles[i].localBest.shoulderRotY = particles[i].positions.shoulderRotY;
-		particles[i].localBest.shoulderRotZ = particles[i].positions.shoulderRotZ;
-		particles[i].localBest.elbowRotX = particles[i].positions.elbowRotX;
-		particles[i].localBest.elbowRotY = particles[i].positions.elbowRotY;
-		particles[i].localBest.elbowRotZ = particles[i].positions.elbowRotZ;
-
-		localBests[i] = calculateDistance(chain, particles[i], targetPosition);
-	}
-}
-
-cudaError_t calculatePSO(Particle *particles, float *bests, curandState_t *randoms, int size, KinematicChainCuda chain, float3 targetPosition, Config config, Coordinates *result)
-{
-	cudaError_t status;
-	int numBlocks = (size + blockSize - 1) / blockSize;
-	initParticlesKernel<<<numBlocks, blockSize>>>(particles, bests, randoms, chain, targetPosition, size);
-	checkCuda(status = cudaGetLastError());
-	if (status != cudaSuccess) return status;
-	checkCuda(status = cudaDeviceSynchronize());
-
-	Coordinates global;
-	float globalMin;
-	float *globalBest = thrust::min_element(thrust::host, bests, bests + size);
-	int globalIndex = globalBest - bests;
-	global = particles[globalIndex].localBest;
-	globalMin = bests[globalIndex];
-	for (int i = 0; i < config._iterations; i++)
-	{
-		simulateParticlesKernel<<<numBlocks, blockSize>>>(particles, bests, randoms, size, chain, targetPosition, config, global, globalMin);
-		checkCuda(status = cudaGetLastError());
-		if (status != cudaSuccess) return status;
-		checkCuda(status = cudaDeviceSynchronize());
-
-		globalBest = thrust::min_element(thrust::host, bests, bests + size);
-		globalIndex = globalBest - bests;
-		global = particles[globalIndex].localBest;
-		globalMin = bests[globalIndex];
-	}
-
-	*result = global;
-
-	return status;
-}
 
 cudaError_t calculatePSONew(ParticleNew *particles, float *bests, curandState_t *randoms, int size, NodeCUDA *chain, Config config, CoordinatesNew *result)
 {
@@ -338,14 +207,11 @@ cudaError_t calculatePSONew(ParticleNew *particles, float *bests, curandState_t 
 		checkCuda(status = cudaGetLastError());
 		if (status != cudaSuccess) return status;
 		checkCuda(status = cudaDeviceSynchronize());
-
 		globalBest = thrust::min_element(thrust::host, bests, bests + size);
 		globalIndex = globalBest - bests;
-		printf("global index = %d  for i = %d\n", globalIndex,i);
 		for (int deg = 0; deg < DEGREES_OF_FREEDOM; deg++)
 		{
 			global.positions[deg] = particles[globalIndex].localBest[deg];
-			printf("%d-%d\n", deg + 1, global.positions[deg]);
 		}
 
 		globalMin = bests[globalIndex];
