@@ -14,28 +14,13 @@
 #include "vector_operations.cuh"
 #include "ik_constants.h"
 
-__constant__ float locality = -0.1f;
+
 __constant__ float angleWeight = 0.05f;
 __constant__ float errorThreshold = 0.1f;
 
-__device__ float calculateDistance(KinematicChainCuda chain, Particle particle, float3 targetPosition)
-{
-	Matrix model = createMatrix(1.0f);
-	model = translateMatrix(model, chain._shoulderPosition);
-	model = rotateEuler(model, particle.positions.shoulderRotX, particle.positions.shoulderRotY, particle.positions.shoulderRotZ);
-	model = translateMatrix(model, make_float3(chain._armLength, 0.0f, 0.0f));
-	model = rotateEuler(model, particle.positions.elbowRotX, particle.positions.elbowRotY, particle.positions.elbowRotZ);
-	model = translateMatrix(model, make_float3(chain._forearmLength, 0.0f, 0.0f));
-	float4 position = make_float4(0.0f, 0.0f, 0.0f, 1.0f);
-	position = multiplyMatByVec(model, position);
-	float3 diff = make_float3(position.x - targetPosition.x, position.y - targetPosition.y, position.z - targetPosition.z);
-	float3 diffShoulder = make_float3(chain._shoulderRotation.x - particle.positions.shoulderRotX, chain._shoulderRotation.y - particle.positions.shoulderRotY, chain._shoulderRotation.z - particle.positions.shoulderRotZ);
-	float3 diffElbow = make_float3(chain._elbowRotation.x - particle.positions.elbowRotX, chain._elbowRotation.y - particle.positions.elbowRotY, chain._elbowRotation.z - particle.positions.elbowRotZ);
-	float distance = magnitudeSqr(diff);
-	return distance + angleWeight * (magnitudeSqr(diffShoulder) + magnitudeSqr(diffElbow));
-}
 
-__device__ Matrix calculateModelMatrix(NodeCUDA *chain, int nodeIndex)
+
+__device__ Matrix calculateModelMatrix(NodeCUDA *chain,ParticleNew *particle, int nodeIndex)
 {
 	if (nodeIndex == 0)
 	{	
@@ -46,8 +31,13 @@ __device__ Matrix calculateModelMatrix(NodeCUDA *chain, int nodeIndex)
 	}
 	else
 	{
-		Matrix matrix = calculateModelMatrix(chain, chain[nodeIndex].parentIndex);
-		matrix = rotateMatrix(matrix, chain[nodeIndex].rotation);
+		int particleIndex = (nodeIndex - 1) * 3;
+		float3 particleEulerRotation = make_float3(particle->positions[particleIndex],
+												   particle->positions[particleIndex+1],
+												   particle->positions[particleIndex+2]);
+
+		Matrix matrix = calculateModelMatrix(chain,particle, chain[nodeIndex].parentIndex);
+		matrix = rotateMatrix(matrix, eulerToQuaternion(particleEulerRotation));
 		matrix = translateMatrix(matrix, make_float3(chain[nodeIndex].length,0.0f,0.0f));
 		return matrix;
 	}
@@ -61,7 +51,8 @@ __device__ float calculateDistanceNew(NodeCUDA *chain, ParticleNew particle)
 	for(int ind = 1; ind <= DEGREES_OF_FREEDOM / 3; ind++)
 	{
 		float4 chainQuaternion = chain[ind].rotation;
-		float4 particleQuaternionRotation = eulerToQuaternion(make_float3(particle.positions[(ind - 1) * 3],
+		float4 particleQuaternionRotation = eulerToQuaternion(make_float3(
+			particle.positions[(ind - 1) * 3],
 			particle.positions[(ind - 1) * 3 + 1],
 			particle.positions[(ind - 1) * 3 + 2]));
 
@@ -69,14 +60,18 @@ __device__ float calculateDistanceNew(NodeCUDA *chain, ParticleNew particle)
 		
 		if (chain[ind].nodeType == NodeType::effectorNode)
 		{		
-			Matrix model = calculateModelMatrix(chain, ind);
+			Matrix model = calculateModelMatrix(chain,&particle, ind);
 			float4 position = make_float4(0.0f, 0.0f, 0.0f, 1.0f);
 			position = multiplyMatByVec(model, position);
 
-			distance = distance + magnitudeSqr(make_float3(position.x - chain[ind].targetPosition.x,
-												  position.y - chain[ind].targetPosition.y,
-												  position.z - chain[ind].targetPosition.z));
+			float distTmp = magnitudeSqr(make_float3(
+													position.x - chain[ind].targetPosition.x,
+													position.y - chain[ind].targetPosition.y,
+													position.z - chain[ind].targetPosition.z));
+		
+			distance = distance + distTmp;
 		}
+		
 		
 	}
 
@@ -131,36 +126,30 @@ __global__ void initParticlesNewKernel(ParticleNew *particles, float *localBests
 {
 	int id = threadIdx.x + blockIdx.x * blockDim.x;
 	int stride = gridDim.x * blockDim.x;
-
+	
 	for (int i = id; i < size; i += stride)
 	{
-		if (curand_uniform(&randoms[i]) > locality)
+	
+		for (int deg = 0; deg < DEGREES_OF_FREEDOM; deg += 3)
 		{
+			//Uniform distribution of particles across the domain
+			int chainIndex = (deg / 3) + 1;
+			float3 eulerMaxConstraint = quaternionToEuler(chain[chainIndex].maxRotation);
+			float3 eulerMinConstraint = quaternionToEuler(chain[chainIndex].minRotation);
 
-			for (int deg = 0; deg < DEGREES_OF_FREEDOM; deg+=3)
-			{
+		/*	printf("maxconstraint x %f\n", chain[chainIndex].maxRotation.x);
+			printf("maxconstraint y %f\n", chain[chainIndex].maxRotation.y);
+			printf("maxconstraint z %f\n", chain[chainIndex].maxRotation.z);*/
 
-				float3 euler = quaternionToEuler(chain[(deg/3)+1].rotation);
-				particles[i].positions[deg] = euler.x;
-				particles[i].positions[deg+1] = euler.y;
-				particles[i].positions[deg+2] = euler.z;		
-			}
-			
-		}
-		else
-		{
-			
-			for (int deg = 0; deg < DEGREES_OF_FREEDOM; deg += 3)
-			{
-				//Uniform distribution of particles across the domain
-				int chainIndex = (deg / 3) + 1;
-				float3 eulerMaxConstraint = quaternionToEuler(chain[chainIndex].maxRotation);
-				float3 eulerMinConstraint = quaternionToEuler(chain[chainIndex].minRotation);
-				
-				particles[i].positions[deg] = (curand_uniform(&randoms[i]) * (eulerMaxConstraint.x - eulerMinConstraint.x)) + eulerMinConstraint.x;
-				particles[i].positions[deg+1] = (curand_uniform(&randoms[i]) * (eulerMaxConstraint.y - eulerMinConstraint.y)) + eulerMinConstraint.y;
-				particles[i].positions[deg+2] = (curand_uniform(&randoms[i]) * (eulerMaxConstraint.z - eulerMinConstraint.z)) + eulerMinConstraint.z;
-			}
+			/*
+			printf("quaterniondiff - deg %d : %f\n",deg, eulerMaxConstraint.z - eulerMinConstraint.z);
+			printf("quaterniondiff - deg %d : %f\n",deg+1, eulerMaxConstraint.x - eulerMinConstraint.x);
+			printf("quaterniondiff - deg %d : %f\n",deg+2, eulerMaxConstraint.y - eulerMinConstraint.y);*/
+			particles[i].positions[deg] = (curand_uniform(&randoms[i])*3.14); //(curand_uniform(&randoms[i]) * (eulerMaxConstraint.x - eulerMinConstraint.x)) + eulerMinConstraint.x;
+			particles[i].positions[deg + 1] = (curand_uniform(&randoms[i])*3.14);// (curand_uniform(&randoms[i]) * (eulerMaxConstraint.y - eulerMinConstraint.y)) + eulerMinConstraint.y;
+			particles[i].positions[deg + 2] = (curand_uniform(&randoms[i])*3.14);// (curand_uniform(&randoms[i]) * (eulerMaxConstraint.z - eulerMinConstraint.z)) + eulerMinConstraint.z;
+
+
 		}
 
 		//Init bests with current data
@@ -172,6 +161,7 @@ __global__ void initParticlesNewKernel(ParticleNew *particles, float *localBests
 
 		//Calculate bests
 		localBests[i] = calculateDistanceNew(chain, particles[i]);
+		
 	}
 
 }
@@ -193,7 +183,7 @@ cudaError_t calculatePSONew(ParticleNew *particles, float *bests, curandState_t 
 
 	float *globalBest = thrust::min_element(thrust::host, bests, bests + size);
 	int globalIndex = globalBest - bests;
-	printf("global index = %d \n", globalIndex);
+
 	for (int deg = 0; deg < DEGREES_OF_FREEDOM; deg++)
 	{
 		global.positions[deg] = particles[globalIndex].localBest[deg];
@@ -213,6 +203,12 @@ cudaError_t calculatePSONew(ParticleNew *particles, float *bests, curandState_t 
 		{
 			global.positions[deg] = particles[globalIndex].localBest[deg];
 		}
+
+		for (int i = 0; i < size; i++)
+		{
+			//printf("\tODLGLOSC %d - %f: \n",i, bests[i]);
+		}
+		
 
 		globalMin = bests[globalIndex];
 	}

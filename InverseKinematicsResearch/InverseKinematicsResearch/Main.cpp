@@ -14,7 +14,7 @@
 #include "Node.h"
 int WINDOW_WIDTH = 800;
 int WINDOW_HEIGHT = 600;
-int N = 4096;
+int N = 32768;
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
@@ -25,7 +25,6 @@ bool rotate = false;
 glm::mat4 view = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -5.0f));
 
 extern cudaError_t initGenerators(curandState_t *randoms, int size);
-extern cudaError_t calculatePSO(Particle *particles, float *bests, curandState_t *randoms, int size, KinematicChainCuda chain, float3 targetPosition, Config config, Coordinates *result);
 extern cudaError_t calculatePSONew(ParticleNew *particles, float *bests, curandState_t *randoms, int size, NodeCUDA *chain, Config config, CoordinatesNew *result);
 
 GLFWwindow* initOpenGLContext();
@@ -62,7 +61,7 @@ int main(int argc, char** argv)
 	TargetNode* nodeTarget2 = new TargetNode(glm::vec3(-1.0f, 1.0f, -1.5f));
 
 	nodeWrist->target = nodeTarget1;
-	nodeWrist2->target = nodeTarget2;
+	nodeWrist2->target = nodeTarget1;
 	nodeArm->AttachChild(nodeElbow);
 	nodeElbow->AttachChild(nodeWrist);
 	nodeElbow->AttachChild(nodeWrist2);
@@ -70,6 +69,10 @@ int main(int argc, char** argv)
 	NodeCUDA* chainCuda = nodeArm->AllocateCUDA();
 	curandState_t *randoms;
 	ParticleNew *particles;
+
+	printf("particle size : %d", sizeof(ParticleNew));
+	printf("array size : %d", 3 * DEGREES_OF_FREEDOM * sizeof(float));
+
 	Config config;
 	float *bests;
 	
@@ -91,8 +94,8 @@ int main(int argc, char** argv)
 		status = calculatePSONew(particles, bests, randoms, N, chainCuda, config, &coords);
 		if (status != cudaSuccess) break;
 		int ind = 1;
-		nodeArm->FromCoords(coords,&ind);
-
+		nodeElbow->FromCoords(coords,&ind);
+		
 		#pragma region GLrendering
 
 		glClearColor(0.3f, 0.3f, 0.3f, 1.0f);

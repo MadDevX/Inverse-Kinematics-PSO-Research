@@ -87,6 +87,8 @@ struct CoordinatesNew
 
 struct ParticleNew
 {
+
+
 	float positions[DEGREES_OF_FREEDOM];
 	float velocities[DEGREES_OF_FREEDOM];
 	float localBest[DEGREES_OF_FREEDOM];

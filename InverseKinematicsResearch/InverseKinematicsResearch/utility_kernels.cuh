@@ -26,6 +26,7 @@ __global__ void randInitKernel(curandState_t *randoms, int size)
 	for (int i = id; i < size; i += stride)
 	{
 		curand_init(i, 0, 0, &randoms[i]);
+		//printf("ID = %d , rand = %f\n", i, curand_uniform(&randoms[i]));
 	}
 }
 
