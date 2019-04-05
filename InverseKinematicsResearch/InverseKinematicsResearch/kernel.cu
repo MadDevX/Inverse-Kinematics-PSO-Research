@@ -15,7 +15,7 @@
 #include "ik_constants.h"
 
 
-__constant__ float angleWeight = 0.05f;
+__constant__ float angleWeight = 1.00f;
 __constant__ float errorThreshold = 0.1f;
 
 
@@ -89,22 +89,22 @@ __global__ void simulateParticlesNewKernel(ParticleNew *particles, float *bests,
 		
 		for (int deg = 0; deg < DEGREES_OF_FREEDOM; deg++)
 		{
-			particles[i].velocities[deg] = config._inertia * particles[i].velocities[deg] +
-				config._local * curand_uniform(&randoms[i]) * (particles[i].localBest[deg] - particles[i].positions[deg]) +
-				config._global * curand_uniform(&randoms[i]) * (global.positions[deg]- particles[i].positions[deg]);
+			particles[i].velocities[deg] = config._inertia * curand_uniform(&randoms[i]) * particles[i].velocities[deg] +
+										   config._local   * curand_uniform(&randoms[i]) * (particles[i].localBest[deg] - particles[i].positions[deg]) +
+										   config._global  * curand_uniform(&randoms[i]) * (global.positions[deg]- particles[i].positions[deg]);
 
 			particles[i].positions[deg] += particles[i].velocities[deg];
 
 			
 		}
 
-		for (int ind = 1; ind <= DEGREES_OF_FREEDOM/3; ind++)
-		{
-			int deg = (ind - 1) * 3;
-			particles[i].positions[deg]   =   clamp(particles[i].positions[deg], chain[ind].minRotation.x, chain[ind].maxRotation.x);
-			particles[i].positions[deg + 1] = clamp(particles[i].positions[deg+1], chain[ind].minRotation.y, chain[ind].maxRotation.y);
-			particles[i].positions[deg + 2] = clamp(particles[i].positions[deg+2], chain[ind].minRotation.z, chain[ind].maxRotation.z);
-		}	
+		//for (int ind = 1; ind <= DEGREES_OF_FREEDOM/3; ind++)
+		//{
+		//	int deg = (ind - 1) * 3;
+		//	particles[i].positions[deg]   =   clamp(particles[i].positions[deg], chain[ind].minRotation.x, chain[ind].maxRotation.x);
+		//	particles[i].positions[deg + 1] = clamp(particles[i].positions[deg+1], chain[ind].minRotation.y, chain[ind].maxRotation.y);
+		//	particles[i].positions[deg + 2] = clamp(particles[i].positions[deg+2], chain[ind].minRotation.z, chain[ind].maxRotation.z);
+		//}	
 		float currentDistance = calculateDistanceNew(chain, particles[i]);
 		
 		if (currentDistance < bests[i])
@@ -137,17 +137,17 @@ __global__ void initParticlesNewKernel(ParticleNew *particles, float *localBests
 			float3 eulerMaxConstraint = quaternionToEuler(chain[chainIndex].maxRotation);
 			float3 eulerMinConstraint = quaternionToEuler(chain[chainIndex].minRotation);
 
-		/*	printf("maxconstraint x %f\n", chain[chainIndex].maxRotation.x);
-			printf("maxconstraint y %f\n", chain[chainIndex].maxRotation.y);
-			printf("maxconstraint z %f\n", chain[chainIndex].maxRotation.z);*/
+			//printf("maxconstraint x %f\n", chain[chainIndex].maxRotation.x);
+			//printf("maxconstraint y %f\n", chain[chainIndex].maxRotation.y);
+			//printf("maxconstraint z %f\n", chain[chainIndex].maxRotation.z);
 
-			/*
-			printf("quaterniondiff - deg %d : %f\n",deg, eulerMaxConstraint.z - eulerMinConstraint.z);
-			printf("quaterniondiff - deg %d : %f\n",deg+1, eulerMaxConstraint.x - eulerMinConstraint.x);
-			printf("quaterniondiff - deg %d : %f\n",deg+2, eulerMaxConstraint.y - eulerMinConstraint.y);*/
-			particles[i].positions[deg] = (curand_uniform(&randoms[i])*3.14); //(curand_uniform(&randoms[i]) * (eulerMaxConstraint.x - eulerMinConstraint.x)) + eulerMinConstraint.x;
-			particles[i].positions[deg + 1] = (curand_uniform(&randoms[i])*3.14);// (curand_uniform(&randoms[i]) * (eulerMaxConstraint.y - eulerMinConstraint.y)) + eulerMinConstraint.y;
-			particles[i].positions[deg + 2] = (curand_uniform(&randoms[i])*3.14);// (curand_uniform(&randoms[i]) * (eulerMaxConstraint.z - eulerMinConstraint.z)) + eulerMinConstraint.z;
+			
+			//printf("quaterniondiff - deg %d : %f\n",deg, eulerMaxConstraint.z - eulerMinConstraint.z);
+			//printf("quaterniondiff - deg %d : %f\n",deg+1, eulerMaxConstraint.x - eulerMinConstraint.x);
+			//printf("quaterniondiff - deg %d : %f\n",deg+2, eulerMaxConstraint.y - eulerMinConstraint.y);
+			particles[i].positions[deg] = (curand_uniform(&randoms[i])    *6.28f - 3.14f); //(curand_uniform(&randoms[i]) * (eulerMaxConstraint.x - eulerMinConstraint.x)) + eulerMinConstraint.x;
+			particles[i].positions[deg + 1] = (curand_uniform(&randoms[i])*6.28f - 3.14f);// (curand_uniform(&randoms[i]) * (eulerMaxConstraint.y - eulerMinConstraint.y)) + eulerMinConstraint.y;
+			particles[i].positions[deg + 2] = (curand_uniform(&randoms[i])*6.28f - 3.14f);// (curand_uniform(&randoms[i]) * (eulerMaxConstraint.z - eulerMinConstraint.z)) + eulerMinConstraint.z;
 
 
 		}
@@ -182,6 +182,8 @@ cudaError_t calculatePSONew(ParticleNew *particles, float *bests, curandState_t 
 
 
 	float *globalBest = thrust::min_element(thrust::host, bests, bests + size);
+
+	checkCuda(status = cudaDeviceSynchronize());
 	int globalIndex = globalBest - bests;
 
 	for (int deg = 0; deg < DEGREES_OF_FREEDOM; deg++)
@@ -198,6 +200,8 @@ cudaError_t calculatePSONew(ParticleNew *particles, float *bests, curandState_t 
 		if (status != cudaSuccess) return status;
 		checkCuda(status = cudaDeviceSynchronize());
 		globalBest = thrust::min_element(thrust::host, bests, bests + size);
+
+		checkCuda(status = cudaDeviceSynchronize());
 		globalIndex = globalBest - bests;
 		for (int deg = 0; deg < DEGREES_OF_FREEDOM; deg++)
 		{
@@ -214,6 +218,6 @@ cudaError_t calculatePSONew(ParticleNew *particles, float *bests, curandState_t 
 	}
 
 	*result = global;
-
+	//printf("Global Min: %f; Index = %d\n", globalMin, globalIndex);
 	return status;
 }

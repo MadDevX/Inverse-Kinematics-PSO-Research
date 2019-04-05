@@ -109,7 +109,7 @@ struct Config
 	int _iterations;
 
 
-	Config(float inertia = 0.2f, float local = 0.7f, float global = 0.5f, int iterations = 15)
+	Config(float inertia = 0.2f, float local = 0.5f, float global = 0.7f, int iterations = 10)
 	{
 		_inertia = inertia;
 		_local = local;

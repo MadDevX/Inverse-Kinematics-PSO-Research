@@ -46,6 +46,7 @@ public:
 
 		this->rotation = glm::quat(rotation);
 		this->minRotation = glm::quat(minRotation);
+		//to nie dzia³a
 		this->maxRotation = glm::quat(maxRotation);
 	}
 
@@ -139,6 +140,9 @@ protected:
 		tmpNode.maxRotation.y = this->maxRotation.y;
 		tmpNode.maxRotation.z = this->maxRotation.z;
 			   
+		//printf("tmp - %f;%f;%f;%f;\n", tmpNode.maxRotation.w, tmpNode.maxRotation.x, tmpNode.maxRotation.y, tmpNode.maxRotation.z);
+		//printf("this - %f;%f;%f;%f;\n", this->maxRotation.w, this->maxRotation.x, this->maxRotation.y, this->maxRotation.z);
+
 		tmpNode.parentIndex = parentIndex;
 		this->FillNodeCUDAtype(&tmpNode);
 
@@ -147,13 +151,11 @@ protected:
 		cudaMemcpy((void*)(array + *index), (void*)&tmpNode, sizeof(NodeCUDA), cudaMemcpyHostToDevice);
 
 		(*index)++;
-
 	
 		for (int i = 0; i < link.children.size(); i++)
 		{
 			link.children[i]->CopyToArray(array, index ,parentIndex);
 		}
-		
 	}
 
 
