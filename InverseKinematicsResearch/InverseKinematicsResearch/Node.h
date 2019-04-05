@@ -3,6 +3,29 @@
 #include "ik_constants.h"
 #define GIZMO_SCALE_MATRIX glm::scale(glm::mat4(1.0f), glm::vec3(GIZMO_SIZE))
 
+glm::mat4 rotateEuler(glm::mat4 matrix, glm::vec3 angles)
+{
+	matrix = glm::rotate(matrix, angles.x, glm::vec3(1.0f, 0.0f, 0.0f));
+	matrix = glm::rotate(matrix, angles.y, glm::vec3(0.0f, 1.0f, 0.0f));
+	matrix = glm::rotate(matrix, angles.z, glm::vec3(0.0f, 0.0f, 1.0f));
+	return matrix;
+}
+
+glm::vec3 clampVec3(glm::vec3 vector, glm::vec3 min, glm::vec3 max)
+{
+	vector.x = glm::min(vector.x, max.x);
+	vector.x = glm::max(vector.x, min.x);
+	vector.y = glm::min(vector.y, max.y);
+	vector.y = glm::max(vector.y, min.y);
+	vector.z = glm::min(vector.z, max.z);
+	vector.z = glm::max(vector.z, min.z);
+	return vector;
+}
+
+float3 fromGLM(glm::vec3 vector)
+{
+	return make_float3(vector.x, vector.y, vector.z);
+}
 
 struct Connection;
 class Node;
@@ -25,9 +48,9 @@ class Node
 
 public:
 	
-	glm::quat rotation;
-	glm::quat minRotation;
-	glm::quat maxRotation;
+	glm::vec3 rotation;
+	glm::vec3 minRotation;
+	glm::vec3 maxRotation;
 
 	Connection link;
 
@@ -35,7 +58,7 @@ public:
 	{
 		link.length = 0.0f;
 		link.parent = nullptr;
-		rotation = glm::quat(glm::vec3(0.0f));
+		rotation = glm::vec3(0.0f);
 	}
 
 	Node(glm::vec3 rotation, glm::vec3 minRotation, glm::vec3 maxRotation, float length, Node* parent = nullptr)
@@ -44,10 +67,10 @@ public:
 		link.parent = parent;
 		
 
-		this->rotation = glm::quat(rotation);
-		this->minRotation = glm::quat(minRotation);
+		this->rotation = rotation;
+		this->minRotation = minRotation;
 		//to nie dzia³a
-		this->maxRotation = glm::quat(maxRotation);
+		this->maxRotation = maxRotation;
 	}
 
 	void AttachChild(Node* child)
@@ -70,11 +93,11 @@ public:
 	{
 		if (link.parent == nullptr)
 		{
-			return glm::mat4_cast(rotation);
+			return rotateEuler(glm::mat4(1.0f), rotation);
 		}
 		else
 		{
-			return link.parent->GetModelMatrix() * glm::mat4_cast(rotation) * glm::translate(glm::mat4(1.0f), glm::vec3(link.length, 0.0f, 0.0f));
+			return link.parent->GetModelMatrix() * rotateEuler(glm::mat4(1.0f), rotation) * glm::translate(glm::mat4(1.0f), glm::vec3(link.length, 0.0f, 0.0f));
 		}
 	}
 
@@ -96,7 +119,7 @@ public:
 	{
 		int coordIndex = ((*nodeIndex) - 1) * 3;
 		
-		this->rotation = glm::quat(glm::vec3(coords.positions[coordIndex], coords.positions[coordIndex + 1], coords.positions[coordIndex + 2]));
+		this->rotation = glm::vec3(coords.positions[coordIndex], coords.positions[coordIndex + 1], coords.positions[coordIndex + 2]);
 		
 		(*nodeIndex)++;
 
@@ -125,17 +148,14 @@ protected:
 		NodeCUDA tmpNode = NodeCUDA();
 		tmpNode.length = this->link.length;
 
-		tmpNode.rotation.w= this->rotation.w;
 		tmpNode.rotation.x=	this->rotation.x;
 		tmpNode.rotation.y=	this->rotation.y;
 		tmpNode.rotation.z=	this->rotation.z;	
 		
-		tmpNode.minRotation.w = this->minRotation.w;
 		tmpNode.minRotation.x = this->minRotation.x;
 		tmpNode.minRotation.y = this->minRotation.y;
 		tmpNode.minRotation.z = this->minRotation.z;
 
-		tmpNode.maxRotation.w = this->maxRotation.w;
 		tmpNode.maxRotation.x = this->maxRotation.x;
 		tmpNode.maxRotation.y = this->maxRotation.y;
 		tmpNode.maxRotation.z = this->maxRotation.z;
@@ -173,7 +193,7 @@ protected:
 	void DrawLink(Shader shader, unsigned int VAO, Node* child)
 	{
 		glm::mat4 model = GetModelMatrix() *
-						  glm::mat4_cast(child->rotation)*
+						  rotateEuler(glm::mat4(1.0f), child->rotation) *
 						  glm::translate(glm::mat4(1.0f), glm::vec3(child->link.length * 0.5f, 0.0f, 0.0f)) *
 						  glm::scale(glm::mat4(1.0f), glm::vec3(child->link.length, GIZMO_SIZE * 0.25f, GIZMO_SIZE * 0.25f));
 
@@ -223,14 +243,14 @@ public:
 			   glm::vec3 maxRotation = glm::vec3(+1.0f*PI, +1.0f*PI, +1.0f*PI)):Node()
 	{
 		this->position = position;
-		this->rotation = glm::quat(rotation);
-		this->minRotation = glm::quat(minRotation);
-		this->maxRotation = glm::quat(maxRotation);
+		this->rotation = rotation;
+		this->minRotation = minRotation;
+		this->maxRotation = maxRotation;
 	}
 	
 	glm::mat4 GetModelMatrix() override
 	{
-		return glm::translate(glm::mat4(1.0f), this->position) * glm::mat4_cast(rotation);
+		return glm::translate(glm::mat4(1.0f), this->position) * rotateEuler(glm::mat4(1.0f), rotation);
 	}
 
 protected:
@@ -263,17 +283,17 @@ class TargetNode
 {
 public:
 	glm::vec3 position;
-	glm::quat rotation;
+	glm::vec3 rotation;
 
 	glm::mat4 GetModelMatrix()
 	{
-		return glm::translate(glm::mat4(1.0f), position) * glm::mat4_cast(rotation);
+		return glm::translate(glm::mat4(1.0f), position) * rotateEuler(glm::mat4(1.0f), rotation);
 	}
 
 	TargetNode(glm::vec3 position = glm::vec3(0.0f), glm::vec3 rotation = glm::vec3(0.0f))
 	{
 		this->position = position;
-		this->rotation = glm::quat(rotation);
+		this->rotation = rotation;
 	}
 
 	void DrawCurrent(Shader shader, unsigned int VAO)
@@ -315,7 +335,6 @@ protected:
 			node->targetPosition.y = this->target->position.y;
 			node->targetPosition.z = this->target->position.z;
 
-			node->targetRotation.w = this->target->rotation.w;
 			node->targetRotation.x = this->target->rotation.x;
 			node->targetRotation.y = this->target->rotation.y;
 			node->targetRotation.z = this->target->rotation.z;	

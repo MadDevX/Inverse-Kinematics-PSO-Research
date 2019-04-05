@@ -10,11 +10,10 @@
 #include <curand_kernel.h>
 #include "Models.h"
 #include "Particle.h"
-#include "KinematicChain.h"
 #include "Node.h"
 int WINDOW_WIDTH = 800;
 int WINDOW_HEIGHT = 600;
-int N = 32768;
+int N = 4096;
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
@@ -55,21 +54,23 @@ int main(int argc, char** argv)
 
 	OriginNode* nodeArm = new OriginNode(glm::vec3(0.0f), glm::vec3(0.0f), glm::vec3(0.0f), glm::vec3(2*PI));
 	Node* nodeElbow = new Node(glm::vec3(0.0f, 1.57f, 0.0f), glm::vec3(0.0f), glm::vec3(2 * PI), 1.0f);
+	Node* nodeElbow2 = new Node(glm::vec3(0.0f, 1.57f, 0.0f), glm::vec3(0.0f), glm::vec3(2 * PI), 1.0f);
 	EffectorNode* nodeWrist = new EffectorNode(glm::vec3(0.0f, 1.57f, 0.0f), glm::vec3(0.0f), glm::vec3(2 * PI), 1.0f);
-	//EffectorNode* nodeWrist2 = new EffectorNode(glm::vec3(0.0f, 0.0f, 1.57f), glm::vec3(0.0f), glm::vec3(2 * PI), 1.0f);
-	//EffectorNode* nodeWrist3 = new EffectorNode(glm::vec3(0.0f, 0.0f, 1.57f), glm::vec3(0.0f), glm::vec3(2 * PI), 1.0f);
+	EffectorNode* nodeWrist2 = new EffectorNode(glm::vec3(0.0f, 0.0f, 1.57f), glm::vec3(0.0f), glm::vec3(2 * PI), 1.0f);
+	EffectorNode* nodeWrist3 = new EffectorNode(glm::vec3(0.0f, 0.0f, 1.57f), glm::vec3(0.0f), glm::vec3(2 * PI), 1.0f);
 	TargetNode* nodeTarget1 = new TargetNode(glm::vec3(1.0f, 1.0f, -1.5f));
-	//TargetNode* nodeTarget2 = new TargetNode(glm::vec3(-1.0f, 1.0f, -1.5f));
-	//TargetNode* nodeTarget3 = new TargetNode(glm::vec3(0.0f, 0.0f, -2.0f));
+	TargetNode* nodeTarget2 = new TargetNode(glm::vec3(-1.0f, 1.0f, -1.5f));
+	TargetNode* nodeTarget3 = new TargetNode(glm::vec3(0.0f, 0.0f, -2.0f));
 
 
 	nodeWrist->target = nodeTarget1;
-	//nodeWrist2->target = nodeTarget2;
-	//nodeWrist3->target = nodeTarget3;
+	nodeWrist2->target = nodeTarget2;
+	nodeWrist3->target = nodeTarget3;
 	nodeArm->AttachChild(nodeElbow);
-	nodeElbow->AttachChild(nodeWrist);
-	//nodeElbow->AttachChild(nodeWrist2);
-	//nodeElbow->AttachChild(nodeWrist3);
+	nodeElbow->AttachChild(nodeElbow2);
+	nodeElbow2->AttachChild(nodeWrist);
+	nodeElbow2->AttachChild(nodeWrist2);
+	nodeElbow2->AttachChild(nodeWrist3);
 	
 	NodeCUDA* chainCuda = nodeArm->AllocateCUDA();
 	curandState_t *randoms;
@@ -112,8 +113,8 @@ int main(int argc, char** argv)
 		drawCoordinates(shader, coordVAO);
 		nodeArm->Draw(shader, VAO);
 		nodeTarget1->DrawCurrent(shader,VAO);
-		//nodeTarget2->DrawCurrent(shader, VAO);
-		//nodeTarget3->DrawCurrent(shader, VAO);
+		nodeTarget2->DrawCurrent(shader, VAO);
+		nodeTarget3->DrawCurrent(shader, VAO);
 
 		glfwSwapBuffers(window);
 		
@@ -135,9 +136,10 @@ int main(int argc, char** argv)
 	cudaFree(randoms);
 	delete(nodeArm);
 	delete(nodeElbow);
+	delete(nodeElbow2);
 	delete(nodeWrist);
-	//delete(nodeWrist2);
-	//delete(nodeWrist3);
+	delete(nodeWrist2);
+	delete(nodeWrist3);
 	#pragma endregion
 
 	

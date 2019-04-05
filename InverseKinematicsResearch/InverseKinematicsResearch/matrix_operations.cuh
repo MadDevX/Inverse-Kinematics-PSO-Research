@@ -140,6 +140,14 @@ __device__ Matrix rotateEuler(Matrix left, float x, float y, float z)
 	return left;
 }
 
+__device__ Matrix rotateEuler(Matrix left, float3 angles)
+{
+	left = rotateMatrixAlongX(left, angles.x);
+	left = rotateMatrixAlongY(left, angles.y);
+	left = rotateMatrixAlongZ(left, angles.z);
+	return left;
+}
+
 __device__ Matrix rotateMatrix(Matrix left, float4 quaternion)
 {
 	return multiplyMatrices(left, quaternionToMatrix(quaternion));

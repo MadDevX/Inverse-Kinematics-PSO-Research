@@ -15,14 +15,14 @@ struct NodeCUDA
 	NodeType nodeType;
 	int parentIndex;
 	float3 position;
-	float4 rotation; //rotation relative to parent
+	float3 rotation; //rotation relative to parent
 
-	float4 maxRotation;
-	float4 minRotation;
+	float3 maxRotation;
+	float3 minRotation;
 
 	float length;
 	float3 targetPosition;
-	float4 targetRotation;
+	float3 targetRotation;
 };
 
 struct KinematicChainCuda
@@ -87,8 +87,6 @@ struct CoordinatesNew
 
 struct ParticleNew
 {
-
-
 	float positions[DEGREES_OF_FREEDOM];
 	float velocities[DEGREES_OF_FREEDOM];
 	float localBest[DEGREES_OF_FREEDOM];
