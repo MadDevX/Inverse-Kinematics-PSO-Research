@@ -80,8 +80,15 @@ __device__ float calculateDistanceNew(NodeCUDA *chain, ParticleNew particle)
 
 __global__ void simulateParticlesNewKernel(ParticleNew *particles, float *bests, curandState_t *randoms, int size, NodeCUDA *chain, Config config, CoordinatesNew global, float globalMin)
 {
+	extern __shared__ NodeCUDA sharedChain[];
+
 	int id = threadIdx.x + blockIdx.x * blockDim.x;
 	int stride = gridDim.x * blockDim.x;
+
+	for (int i = id % blockDim.x; i < (DEGREES_OF_FREEDOM / 3) + 1; i++)
+	{
+		sharedChain[i] = chain[i];
+	}
 
 	for (int i = id; i < size; i += stride)
 	{
@@ -104,7 +111,7 @@ __global__ void simulateParticlesNewKernel(ParticleNew *particles, float *bests,
 		//	particles[i].positions[deg + 1] = clamp(particles[i].positions[deg+1], chain[ind].minRotation.y, chain[ind].maxRotation.y);
 		//	particles[i].positions[deg + 2] = clamp(particles[i].positions[deg+2], chain[ind].minRotation.z, chain[ind].maxRotation.z);
 		//}	
-		float currentDistance = calculateDistanceNew(chain, particles[i]);
+		float currentDistance = calculateDistanceNew(sharedChain, particles[i]);
 		
 		if (currentDistance < bests[i])
 		{
@@ -122,8 +129,15 @@ __global__ void simulateParticlesNewKernel(ParticleNew *particles, float *bests,
 
 __global__ void initParticlesNewKernel(ParticleNew *particles, float *localBests, curandState_t *randoms, NodeCUDA * chain, int size)
 {
+	extern __shared__ NodeCUDA sharedChain[];
+
 	int id = threadIdx.x + blockIdx.x * blockDim.x;
 	int stride = gridDim.x * blockDim.x;
+
+	for (int i = id % blockDim.x; i < (DEGREES_OF_FREEDOM / 3) + 1; i++)
+	{
+		sharedChain[i] = chain[i];
+	}
 
 
 	
@@ -134,8 +148,8 @@ __global__ void initParticlesNewKernel(ParticleNew *particles, float *localBests
 		{
 			//Uniform distribution of particles across the domain
 			int chainIndex = (deg / 3) + 1;
-			float3 eulerMaxConstraint = chain[chainIndex].maxRotation;
-			float3 eulerMinConstraint = chain[chainIndex].minRotation;
+			float3 eulerMaxConstraint = sharedChain[chainIndex].maxRotation;
+			float3 eulerMinConstraint = sharedChain[chainIndex].minRotation;
 
 			//printf("maxconstraint x %f\n", chain[chainIndex].maxRotation.x);
 			//printf("maxconstraint y %f\n", chain[chainIndex].maxRotation.y);
@@ -148,7 +162,7 @@ __global__ void initParticlesNewKernel(ParticleNew *particles, float *localBests
 			//particles[i].positions[deg] =     (curand_uniform(&randoms[i])    *6.28f - 3.14f); //(curand_uniform(&randoms[i]) * (eulerMaxConstraint.x - eulerMinConstraint.x)) + eulerMinConstraint.x;
 			//particles[i].positions[deg + 1] = (curand_uniform(&randoms[i])*6.28f - 3.14f);// (curand_uniform(&randoms[i]) * (eulerMaxConstraint.y - eulerMinConstraint.y)) + eulerMinConstraint.y;
 			//particles[i].positions[deg + 2] = (curand_uniform(&randoms[i])*6.28f - 3.14f);// (curand_uniform(&randoms[i]) * (eulerMaxConstraint.z - eulerMinConstraint.z)) + eulerMinConstraint.z;
-			float3 eulerRot = chain[chainIndex].rotation;
+			float3 eulerRot = sharedChain[chainIndex].rotation;
 			particles[i].positions[deg] = eulerRot.x;
 			particles[i].positions[deg + 1] = eulerRot.y;
 			particles[i].positions[deg + 2] = eulerRot.z;
@@ -163,7 +177,7 @@ __global__ void initParticlesNewKernel(ParticleNew *particles, float *localBests
 		}
 
 		//Calculate bests
-		localBests[i] = calculateDistanceNew(chain, particles[i]);
+		localBests[i] = calculateDistanceNew(sharedChain, particles[i]);
 		
 	}
 
@@ -177,8 +191,9 @@ cudaError_t calculatePSONew(ParticleNew *particles, float *bests, curandState_t 
 	CoordinatesNew global;
 	float globalMin;
 	int numBlocks = (size + blockSize - 1) / blockSize;
+	int sharedMemorySize = sizeof(NodeCUDA)*((DEGREES_OF_FREEDOM / 3) + 1);
 
-	initParticlesNewKernel << <numBlocks, blockSize >> > (particles, bests, randoms, chain, size);
+	initParticlesNewKernel << <numBlocks, blockSize, sharedMemorySize>> > (particles, bests, randoms, chain, size);
 	checkCuda(status = cudaGetLastError());
 	if (status != cudaSuccess) return status;
 	checkCuda(status = cudaDeviceSynchronize());
@@ -198,7 +213,7 @@ cudaError_t calculatePSONew(ParticleNew *particles, float *bests, curandState_t 
 
 	for (int i = 0; i < config._iterations; i++)
 	{
-		simulateParticlesNewKernel << <numBlocks, blockSize >> > (particles, bests, randoms, size, chain, config, global, globalMin);
+		simulateParticlesNewKernel << <numBlocks, blockSize, sharedMemorySize >> > (particles, bests, randoms, size, chain, config, global, globalMin);
 		checkCuda(status = cudaGetLastError());
 		if (status != cudaSuccess) return status;
 		checkCuda(status = cudaDeviceSynchronize());
