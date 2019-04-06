@@ -118,7 +118,10 @@ public:
 	{
 		int coordIndex = ((*nodeIndex) - 1) * 3;
 		
-		this->rotation = glm::vec3(coords.positions[coordIndex], coords.positions[coordIndex + 1], coords.positions[coordIndex + 2]);
+		if(*nodeIndex != 0)
+		{ 
+			this->rotation = glm::vec3(coords.positions[coordIndex], coords.positions[coordIndex + 1], coords.positions[coordIndex + 2]);
+		}
 		
 		(*nodeIndex)++;
 

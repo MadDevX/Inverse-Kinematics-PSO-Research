@@ -55,8 +55,12 @@ int main(int argc, char** argv)
 	#pragma endregion
 
     nodeArm = new OriginNode(glm::vec3(0.0f), glm::vec3(0.0f), glm::vec3(0.0f), glm::vec3(2*PI));
-	Node* nodeElbow = new Node(glm::vec3(0.0f, 1.57f, 0.0f), glm::vec3(0.0f), glm::vec3(2 * PI), 1.0f);
-	Node* nodeElbow2 = new Node(glm::vec3(0.0f, 1.57f, 0.0f), glm::vec3(0.0f), glm::vec3(2 * PI), 1.0f);
+	int elbows = 4;
+	Node** nodeElbows = new Node*[elbows];
+	for (int i = 0; i < elbows; i++)
+	{
+		nodeElbows[i] = new Node(glm::vec3(0.0f, 1.57f, 0.0f), glm::vec3(0.0f), glm::vec3(2 * PI), 1.0f);
+	}
 	EffectorNode* nodeWrist = new EffectorNode(glm::vec3(0.0f, 1.57f, 0.0f), glm::vec3(0.0f), glm::vec3(2 * PI), 1.0f);
 	EffectorNode* nodeWrist2 = new EffectorNode(glm::vec3(0.0f, 0.0f, 1.57f), glm::vec3(0.0f), glm::vec3(2 * PI), 1.0f);
 	EffectorNode* nodeWrist3 = new EffectorNode(glm::vec3(0.0f, 0.0f, 1.57f), glm::vec3(0.0f), glm::vec3(2 * PI), 1.0f);
@@ -77,11 +81,14 @@ int main(int argc, char** argv)
 
 
 
-	nodeArm->AttachChild(nodeElbow);
-	nodeElbow->AttachChild(nodeElbow2);
-	nodeElbow2->AttachChild(nodeWrist);
-	nodeElbow2->AttachChild(nodeWrist2);
-	nodeElbow2->AttachChild(nodeWrist3);
+	nodeArm->AttachChild(nodeElbows[0]);
+	for (int i = 1; i < elbows; i++)
+	{
+		nodeElbows[i - 1]->AttachChild(nodeElbows[i]);
+	}
+	nodeElbows[elbows-1]->AttachChild(nodeWrist);
+	nodeElbows[elbows-1]->AttachChild(nodeWrist2);
+	nodeElbows[elbows-1]->AttachChild(nodeWrist3);
 	
 	NodeCUDA* chainCuda = nodeArm->AllocateCUDA();
 	curandState_t *randoms;
@@ -107,8 +114,8 @@ int main(int argc, char** argv)
 		nodeArm->ToCUDA(chainCuda);
 		status = calculatePSONew(particles, bests, randoms, N, chainCuda, config, &coords);
 		if (status != cudaSuccess) break;
-		int ind = 1;
-		nodeElbow->FromCoords(coords,&ind);
+		int ind = 0;
+		nodeArm->FromCoords(coords,&ind);
 		
 		#pragma region GLrendering
 
@@ -143,8 +150,12 @@ int main(int argc, char** argv)
 	cudaFree(particles);
 	cudaFree(randoms);
 	delete(nodeArm);
-	delete(nodeElbow);
-	delete(nodeElbow2);
+	
+	for (int i = 0; i < elbows; i++)
+	{
+		delete(nodeElbows[i]);
+	}
+	delete[](nodeElbows);
 	delete(nodeWrist);
 	delete(nodeWrist2);
 	delete(nodeWrist3);

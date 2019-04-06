@@ -15,7 +15,7 @@
 #include "ik_constants.h"
 
 
-__constant__ float angleWeight = 0.5f;
+__constant__ float angleWeight = 3.0f;
 __constant__ float errorThreshold = 0.1f;
 
 
@@ -74,7 +74,7 @@ __device__ float calculateDistanceNew(NodeCUDA *chain, ParticleNew particle)
 		
 	}
 
-	return distance + angleWeight * (rotationDifference);
+	return distance + angleWeight/(DEGREES_OF_FREEDOM / 3) * rotationDifference;
 }
 
 __global__ void simulateParticlesNewKernel(ParticleNew *particles, float *bests, curandState_t *randoms, int size, NodeCUDA *chain, Config config, CoordinatesNew global, float globalMin)
