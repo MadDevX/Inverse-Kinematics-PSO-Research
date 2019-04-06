@@ -57,7 +57,6 @@ int main(int argc, char** argv)
     nodeArm = new OriginNode(glm::vec3(0.0f), glm::vec3(0.0f), glm::vec3(0.0f), glm::vec3(2*PI));
 	Node* nodeElbow = new Node(glm::vec3(0.0f, 1.57f, 0.0f), glm::vec3(0.0f), glm::vec3(2 * PI), 1.0f);
 	Node* nodeElbow2 = new Node(glm::vec3(0.0f, 1.57f, 0.0f), glm::vec3(0.0f), glm::vec3(2 * PI), 1.0f);
-	Node* nodeElbow3 = new Node(glm::vec3(0.0f, 1.57f, 0.0f), glm::vec3(0.0f), glm::vec3(2 * PI), 1.0f);
 	EffectorNode* nodeWrist = new EffectorNode(glm::vec3(0.0f, 1.57f, 0.0f), glm::vec3(0.0f), glm::vec3(2 * PI), 1.0f);
 	EffectorNode* nodeWrist2 = new EffectorNode(glm::vec3(0.0f, 0.0f, 1.57f), glm::vec3(0.0f), glm::vec3(2 * PI), 1.0f);
 	EffectorNode* nodeWrist3 = new EffectorNode(glm::vec3(0.0f, 0.0f, 1.57f), glm::vec3(0.0f), glm::vec3(2 * PI), 1.0f);
@@ -80,17 +79,13 @@ int main(int argc, char** argv)
 
 	nodeArm->AttachChild(nodeElbow);
 	nodeElbow->AttachChild(nodeElbow2);
-	nodeElbow2->AttachChild(nodeElbow3);
-	nodeElbow3->AttachChild(nodeWrist);
-	nodeElbow3->AttachChild(nodeWrist2);
-	nodeElbow3->AttachChild(nodeWrist3);
+	nodeElbow2->AttachChild(nodeWrist);
+	nodeElbow2->AttachChild(nodeWrist2);
+	nodeElbow2->AttachChild(nodeWrist3);
 	
 	NodeCUDA* chainCuda = nodeArm->AllocateCUDA();
 	curandState_t *randoms;
 	ParticleNew *particles;
-
-	printf("particle size : %d", sizeof(ParticleNew));
-	printf("array size : %d", 3 * DEGREES_OF_FREEDOM * sizeof(float));
 
 	Config config;
 	float *bests;
@@ -150,7 +145,6 @@ int main(int argc, char** argv)
 	delete(nodeArm);
 	delete(nodeElbow);
 	delete(nodeElbow2);
-	delete(nodeElbow3);
 	delete(nodeWrist);
 	delete(nodeWrist2);
 	delete(nodeWrist3);

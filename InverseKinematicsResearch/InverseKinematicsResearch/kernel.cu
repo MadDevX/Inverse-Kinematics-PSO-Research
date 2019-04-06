@@ -20,27 +20,26 @@ __constant__ float errorThreshold = 0.1f;
 
 
 
-__device__ Matrix calculateModelMatrix(NodeCUDA *chain,ParticleNew *particle, int nodeIndex)
+__device__ Matrix calculateModelMatrix(NodeCUDA *chain, ParticleNew *particle, int nodeIndex)
 {
-	if (nodeIndex == 0)
-	{	
-		Matrix matrix = createMatrix(1.0f);
-		matrix = translateMatrix(matrix, chain[nodeIndex].position);
-		matrix = rotateEuler(matrix, chain[nodeIndex].rotation);
-		return matrix;
-	}
-	else
+	Matrix matrix = createMatrix(1.0f);
+	while (nodeIndex != 0)
 	{
 		int particleIndex = (nodeIndex - 1) * 3;
 		float3 particleEulerRotation = make_float3(particle->positions[particleIndex],
-												   particle->positions[particleIndex+1],
-												   particle->positions[particleIndex+2]);
+			particle->positions[particleIndex + 1],
+			particle->positions[particleIndex + 2]);
 
-		Matrix matrix = calculateModelMatrix(chain, particle, chain[nodeIndex].parentIndex);
-		matrix = rotateEuler(matrix, particleEulerRotation);
-		matrix = translateMatrix(matrix, make_float3(chain[nodeIndex].length,0.0f,0.0f));
-		return matrix;
+		Matrix tempMat = createMatrix(1.0f);
+		tempMat = rotateEuler(tempMat, particleEulerRotation);
+		tempMat = translateMatrix(tempMat, make_float3(chain[nodeIndex].length, 0.0f, 0.0f));
+		matrix = multiplyMatrices(tempMat,matrix);
+		nodeIndex = chain[nodeIndex].parentIndex;
 	}
+	Matrix originMatrix = createMatrix(1.0f);
+	originMatrix = translateMatrix(originMatrix, chain[nodeIndex].position);
+	originMatrix = rotateEuler(originMatrix, chain[nodeIndex].rotation);
+	return multiplyMatrices(originMatrix, matrix);
 }
 
 __device__ float calculateDistanceNew(NodeCUDA *chain, ParticleNew particle)
