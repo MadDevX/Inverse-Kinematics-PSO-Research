@@ -25,16 +25,17 @@ glm::mat4 view = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -5.0f));
 
 extern cudaError_t initGenerators(curandState_t *randoms, int size);
 extern cudaError_t calculatePSONew(ParticleNew *particles, float *bests, curandState_t *randoms, int size, NodeCUDA *chain, Config config, CoordinatesNew *result);
-
 GLFWwindow* initOpenGLContext();
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
-void processInput(GLFWwindow *window,TargetNode *target);
+void processInput(GLFWwindow *window);
 void calculateDeltaTime();
 unsigned int initVAO(unsigned int *VBO);
 unsigned int initCoordVAO(unsigned int *VBO);
 void drawCoordinates(Shader shader, unsigned int VAO);
 
+TargetNode* movingTarget;
+TargetNode** targets;
 
 int main(int argc, char** argv)
 {
@@ -61,11 +62,20 @@ int main(int argc, char** argv)
 	TargetNode* nodeTarget1 = new TargetNode(glm::vec3(1.0f, 1.0f, -1.5f));
 	TargetNode* nodeTarget2 = new TargetNode(glm::vec3(-1.0f, 1.0f, -1.5f));
 	TargetNode* nodeTarget3 = new TargetNode(glm::vec3(0.0f, 0.0f, -2.0f));
-
+	
+	movingTarget = nodeTarget1;
+	targets = (TargetNode**)malloc(AMOUNT_OF_TARGETS * sizeof(TargetNode*));
+	
+	targets[0] = nodeTarget1;
+	targets[1] = nodeTarget2;
+	targets[2] = nodeTarget3;
 
 	nodeWrist->target = nodeTarget1;
 	nodeWrist2->target = nodeTarget2;
 	nodeWrist3->target = nodeTarget3;
+
+
+
 	nodeArm->AttachChild(nodeElbow);
 	nodeElbow->AttachChild(nodeElbow2);
 	nodeElbow2->AttachChild(nodeWrist);
@@ -90,7 +100,7 @@ int main(int argc, char** argv)
 	while (!glfwWindowShouldClose(window))
 	{
 		calculateDeltaTime();
-		processInput(window,nodeTarget1);
+		processInput(window);
 		glfwPollEvents();
 
 		cudaError_t status;
@@ -204,22 +214,29 @@ void configureGLFWContext()
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 }
 
-void processInput(GLFWwindow *window,TargetNode *target)
+void processInput(GLFWwindow *window)
 {
+
+	for (int i = 0; i < AMOUNT_OF_TARGETS; i++)
+	{
+		if (glfwGetKey(window, GLFW_KEY_1+i) == GLFW_PRESS)
+			movingTarget = (targets[i]);
+	}
+
 	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
 		glfwSetWindowShouldClose(window, true);
 	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-		target->translate(glm::vec3(-1.0f, 0.0f, 0.0f) * deltaTime);
+		movingTarget->translate(glm::vec3(-1.0f, 0.0f, 0.0f) * deltaTime);
 	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-		target->translate(glm::vec3(1.0f, 0.0f, 0.0f) * deltaTime);
+		movingTarget->translate(glm::vec3(1.0f, 0.0f, 0.0f) * deltaTime);
 	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-		target->translate(glm::vec3(0.0f, 1.0f, 0.0f) * deltaTime);
+		movingTarget->translate(glm::vec3(0.0f, 1.0f, 0.0f) * deltaTime);
 	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-		target->translate(glm::vec3(0.0f, -1.0f, 0.0f) * deltaTime);
+		movingTarget->translate(glm::vec3(0.0f, -1.0f, 0.0f) * deltaTime);
 	if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
-		target->translate(glm::vec3(0.0f, 0.0f, 1.0f) * deltaTime);
+		movingTarget->translate(glm::vec3(0.0f, 0.0f, 1.0f) * deltaTime);
 	if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS)
-		target->translate(glm::vec3(0.0f, 0.0f, -1.0f) * deltaTime);
+		movingTarget->translate(glm::vec3(0.0f, 0.0f, -1.0f) * deltaTime);
 	if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_MIDDLE) == GLFW_PRESS)
 	{
 		rotate = true;

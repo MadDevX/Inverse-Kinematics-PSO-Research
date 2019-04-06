@@ -69,7 +69,6 @@ public:
 
 		this->rotation = rotation;
 		this->minRotation = minRotation;
-		//to nie dzia³a
 		this->maxRotation = maxRotation;
 	}
 
@@ -160,8 +159,7 @@ protected:
 		tmpNode.maxRotation.y = this->maxRotation.y;
 		tmpNode.maxRotation.z = this->maxRotation.z;
 			   
-		//printf("tmp - %f;%f;%f;%f;\n", tmpNode.maxRotation.w, tmpNode.maxRotation.x, tmpNode.maxRotation.y, tmpNode.maxRotation.z);
-		//printf("this - %f;%f;%f;%f;\n", this->maxRotation.w, this->maxRotation.x, this->maxRotation.y, this->maxRotation.z);
+
 
 		tmpNode.parentIndex = parentIndex;
 		this->FillNodeCUDAtype(&tmpNode);
