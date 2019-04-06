@@ -251,6 +251,11 @@ public:
 		return glm::translate(glm::mat4(1.0f), this->position) * rotateEuler(glm::mat4(1.0f), rotation);
 	}
 
+	void translate(glm::vec3 translation)
+	{
+		position += translation;
+	}
+
 protected:
 
 	void FillNodeCUDAtype(NodeCUDA* node) override

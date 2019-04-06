@@ -13,7 +13,7 @@
 #include "Node.h"
 int WINDOW_WIDTH = 800;
 int WINDOW_HEIGHT = 600;
-int N = 4096;
+int N = 8192;
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
@@ -35,6 +35,7 @@ unsigned int initCoordVAO(unsigned int *VBO);
 void drawCoordinates(Shader shader, unsigned int VAO);
 
 TargetNode* movingTarget;
+OriginNode* nodeArm;
 TargetNode** targets;
 
 int main(int argc, char** argv)
@@ -53,9 +54,10 @@ int main(int argc, char** argv)
 	unsigned int coordVAO = initCoordVAO(&coordVBO);
 	#pragma endregion
 
-	OriginNode* nodeArm = new OriginNode(glm::vec3(0.0f), glm::vec3(0.0f), glm::vec3(0.0f), glm::vec3(2*PI));
+    nodeArm = new OriginNode(glm::vec3(0.0f), glm::vec3(0.0f), glm::vec3(0.0f), glm::vec3(2*PI));
 	Node* nodeElbow = new Node(glm::vec3(0.0f, 1.57f, 0.0f), glm::vec3(0.0f), glm::vec3(2 * PI), 1.0f);
 	Node* nodeElbow2 = new Node(glm::vec3(0.0f, 1.57f, 0.0f), glm::vec3(0.0f), glm::vec3(2 * PI), 1.0f);
+	Node* nodeElbow3 = new Node(glm::vec3(0.0f, 1.57f, 0.0f), glm::vec3(0.0f), glm::vec3(2 * PI), 1.0f);
 	EffectorNode* nodeWrist = new EffectorNode(glm::vec3(0.0f, 1.57f, 0.0f), glm::vec3(0.0f), glm::vec3(2 * PI), 1.0f);
 	EffectorNode* nodeWrist2 = new EffectorNode(glm::vec3(0.0f, 0.0f, 1.57f), glm::vec3(0.0f), glm::vec3(2 * PI), 1.0f);
 	EffectorNode* nodeWrist3 = new EffectorNode(glm::vec3(0.0f, 0.0f, 1.57f), glm::vec3(0.0f), glm::vec3(2 * PI), 1.0f);
@@ -78,9 +80,10 @@ int main(int argc, char** argv)
 
 	nodeArm->AttachChild(nodeElbow);
 	nodeElbow->AttachChild(nodeElbow2);
-	nodeElbow2->AttachChild(nodeWrist);
-	nodeElbow2->AttachChild(nodeWrist2);
-	nodeElbow2->AttachChild(nodeWrist3);
+	nodeElbow2->AttachChild(nodeElbow3);
+	nodeElbow3->AttachChild(nodeWrist);
+	nodeElbow3->AttachChild(nodeWrist2);
+	nodeElbow3->AttachChild(nodeWrist3);
 	
 	NodeCUDA* chainCuda = nodeArm->AllocateCUDA();
 	curandState_t *randoms;
@@ -147,6 +150,7 @@ int main(int argc, char** argv)
 	delete(nodeArm);
 	delete(nodeElbow);
 	delete(nodeElbow2);
+	delete(nodeElbow3);
 	delete(nodeWrist);
 	delete(nodeWrist2);
 	delete(nodeWrist3);
@@ -225,6 +229,14 @@ void processInput(GLFWwindow *window)
 
 	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
 		glfwSetWindowShouldClose(window, true);
+	if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS)
+		nodeArm->translate(glm::vec3(-1.0f, 0.0f, 0.0f) * deltaTime);
+	if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS)
+		nodeArm->translate(glm::vec3(1.0f, 0.0f, 0.0f) * deltaTime);
+	if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)
+		nodeArm->translate(glm::vec3(0.0f, 1.0f, 0.0f) * deltaTime);
+	if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)
+		nodeArm->translate(glm::vec3(0.0f, -1.0f, 0.0f) * deltaTime);
 	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
 		movingTarget->translate(glm::vec3(-1.0f, 0.0f, 0.0f) * deltaTime);
 	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)

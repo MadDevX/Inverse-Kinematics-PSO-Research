@@ -198,10 +198,8 @@ cudaError_t calculatePSONew(ParticleNew *particles, float *bests, curandState_t 
 	if (status != cudaSuccess) return status;
 	checkCuda(status = cudaDeviceSynchronize());
 
-
 	float *globalBest = thrust::min_element(thrust::host, bests, bests + size);
 
-	checkCuda(status = cudaDeviceSynchronize());
 	int globalIndex = globalBest - bests;
 
 	for (int deg = 0; deg < DEGREES_OF_FREEDOM; deg++)
@@ -218,8 +216,6 @@ cudaError_t calculatePSONew(ParticleNew *particles, float *bests, curandState_t 
 		if (status != cudaSuccess) return status;
 		checkCuda(status = cudaDeviceSynchronize());
 		globalBest = thrust::min_element(thrust::host, bests, bests + size);
-
-		checkCuda(status = cudaDeviceSynchronize());
 		globalIndex = globalBest - bests;
 		if (globalMin > bests[globalIndex])
 		{
