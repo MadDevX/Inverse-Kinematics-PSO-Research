@@ -40,15 +40,68 @@ TargetNode* movingTarget;
 OriginNode* nodeArm;
 TargetNode** targets;
 
+struct obj_t
+{
+	float x, y, z;
+	ccd_vec3_t pos;
+	ccd_quat_t quat;
+};
+
+void support(const void *_obj, const ccd_vec3_t *_dir, ccd_vec3_t *v)
+{
+	// assume that obj_t is user-defined structure that holds info about
+	// object (in this case box: x, y, z, pos, quat - dimensions of box,
+	// position and rotation)
+	obj_t *obj = (obj_t *)_obj;
+	ccd_vec3_t dir;
+	ccd_quat_t qinv;
+
+	// apply rotation on direction vector
+	ccdVec3Copy(&dir, _dir);
+	ccdQuatInvert2(&qinv, &obj->quat);
+	ccdQuatRotVec(&dir, &qinv);
+
+	// compute support point in specified direction
+	ccdVec3Set(v, 
+		ccdSign(ccdVec3X(&dir)) * obj->x * CCD_REAL(0.5),
+		ccdSign(ccdVec3Y(&dir)) * obj->y * CCD_REAL(0.5),
+		ccdSign(ccdVec3Z(&dir)) * obj->z * CCD_REAL(0.5));
+	// czlowiek to kubek q.e.d.
+	// transform support point according to position and rotation of object
+	ccdQuatRotVec(v, &obj->quat);
+	ccdVec3Add(v, &obj->pos);
+}
+
+
 int main(int argc, char** argv)
 {
 	if (argc == 2)
 	{
 		N = atoi(argv[1]);
 	}
+	obj_t box1, box2;
+	ccd_vec3_t position;
+	ccd_quat_t rotation;
+	ccdQuatSet(&rotation, 0.0f, 0.0f, 0.0f, 1.0f);
+	box2.quat = box1.quat = rotation;
+	box2.x = box1.x = 1.0f;
+	box2.y = box1.y = 1.0f;
+	box2.z = box1.z = 1.0f;
+
+
+	ccdVec3Set(&position, 5.0f, 0.0f, 0.0f);
+	box1.pos = position;
+	ccdVec3Set(&position, 4.0f, 0.0f, 0.0f);
+	box2.pos = position;
 
 	ccd_t ccd;
 	CCD_INIT(&ccd);
+
+	ccd.support1 = support;
+	ccd.support2 = support;
+	ccd.max_iterations = 100;
+	int intersect = ccdGJKIntersect(&box1, &box2, &ccd);
+	printf("intersect result: %d\n", intersect);
 
 	#pragma region GLfunctions
 
