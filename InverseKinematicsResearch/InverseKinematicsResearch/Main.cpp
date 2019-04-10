@@ -8,6 +8,8 @@
 #include <im3d/im3d.h>
 #include <cuda.h>
 #include <curand_kernel.h>
+#include <ccd/ccd.h>
+#include <ccd/quat.h>
 #include "Models.h"
 #include "Particle.h"
 #include "Node.h"
@@ -44,6 +46,9 @@ int main(int argc, char** argv)
 	{
 		N = atoi(argv[1]);
 	}
+
+	ccd_t ccd;
+	CCD_INIT(&ccd);
 
 	#pragma region GLfunctions
 

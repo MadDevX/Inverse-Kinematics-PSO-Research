@@ -42,6 +42,14 @@ __device__ Matrix calculateModelMatrix(NodeCUDA *chain, ParticleNew *particle, i
 	return multiplyMatrices(originMatrix, matrix);
 }
 
+
+//Ewentualnie kolizje moga byc sprawdzane dla odcinka i colliderow, wtedy przekazujemy do funkcji 2 x float3 i liste colliderow.
+//Wtedy checkCollision byloby wywolane w wewnetrznej petli calculateDistance.
+__device__ bool checkCollisions(NodeCUDA *chain, ParticleNew particle /*, Collider* colliders*/)
+{
+	return false;
+}
+
 __device__ float calculateDistanceNew(NodeCUDA *chain, ParticleNew particle)
 {
 	float rotationDifference = 0.0f;
