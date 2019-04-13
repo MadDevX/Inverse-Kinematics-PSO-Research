@@ -2,11 +2,6 @@
 #include "cuda_runtime.h"
 #include <math.h>
 
-struct Matrix
-{
-	float cells[16];
-};
-
 __device__ Matrix createMatrix(float f)
 {
 	Matrix mat;

@@ -3,6 +3,11 @@
 #include <vector_types.h>
 #include "ik_constants.h"
 
+struct Matrix
+{
+	float cells[16];
+};
+
 enum NodeType
 {
 	originNode,
