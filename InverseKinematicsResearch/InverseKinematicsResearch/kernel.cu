@@ -27,7 +27,10 @@ __device__ void updateChainMatrices(NodeCUDA *chain, ParticleNew *particle, Matr
 	Matrix matrix = createMatrix(1.0f);
 	matrix = translateMatrix(matrix, chain[nodeIndex].position);
 	matrix = rotateEuler(matrix, chain[nodeIndex].rotation);
-	matrices[matricesOffset + nodeIndex] = matrix;
+	for (int i = 0; i < 16; i++)
+	{
+		matrices[matricesOffset + nodeIndex].cells[i] = matrix.cells[i];
+	}
 
 	for(nodeIndex = 1; nodeIndex < nodeCount; nodeIndex++)
 	{
@@ -40,8 +43,11 @@ __device__ void updateChainMatrices(NodeCUDA *chain, ParticleNew *particle, Matr
 		tempMat = rotateEuler(tempMat, particleEulerRotation);
 		tempMat = translateMatrix(tempMat, make_float3(chain[nodeIndex].length, 0.0f, 0.0f));
 		int parentIdx = chain[nodeIndex].parentIndex;
-		matrices[matricesOffset + nodeIndex] = multiplyMatrices(matrices[matricesOffset + parentIdx], tempMat);
-		nodeIndex = parentIdx;
+		matrix = multiplyMatrices(matrices[matricesOffset + parentIdx], tempMat);
+		for (int i = 0; i < 16; i++)
+		{
+			matrices[matricesOffset + nodeIndex].cells[i] = matrix.cells[i];
+		}
 	}
 }
 
@@ -81,7 +87,7 @@ __device__ float calculateDistanceNew(NodeCUDA *chain, ParticleNew particle, Mat
 	float distance = 0.0f;
 	int nodeCount = NODE_COUNT;
 
-	//updateChainMatrices(chain, &particle, matrices, particleThreadIdx);
+	updateChainMatrices(chain, &particle, matrices, particleThreadIdx);
 	for(int ind = 1; ind < nodeCount; ind++)
 	{
 		float3 chainRotation = chain[ind].rotation;
@@ -94,7 +100,7 @@ __device__ float calculateDistanceNew(NodeCUDA *chain, ParticleNew particle, Mat
 		
 		if (chain[ind].nodeType == NodeType::effectorNode)
 		{		
-			Matrix model =/* matrices[nodeCount * particleThreadIdx + ind];  */calculateModelMatrix(chain,&particle, ind);
+			Matrix model = matrices[nodeCount * particleThreadIdx + ind];  /*calculateModelMatrix(chain,&particle, ind);*/
 			float4 position = make_float4(0.0f, 0.0f, 0.0f, 1.0f);
 			position = multiplyMatByVec(model, position);
 
