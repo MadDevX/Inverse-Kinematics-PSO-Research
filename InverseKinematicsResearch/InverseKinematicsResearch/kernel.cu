@@ -18,10 +18,9 @@
 __constant__ float angleWeight = 3.0f;
 __constant__ float errorThreshold = 0.1f;
 
-__device__ void updateChainMatrices(NodeCUDA *chain, ParticleNew *particle, Matrix *matrices, int particleThreadIdx)
+__device__ void updateChainMatrices(NodeCUDA *chain, ParticleNew particle, Matrix *matrices)
 {
 	int nodeCount = NODE_COUNT;
-	int matricesOffset = particleThreadIdx * nodeCount;
 	int nodeIndex = 0;
 
 	Matrix matrix = createMatrix(1.0f);
@@ -29,24 +28,24 @@ __device__ void updateChainMatrices(NodeCUDA *chain, ParticleNew *particle, Matr
 	matrix = rotateEuler(matrix, chain[nodeIndex].rotation);
 	for (int i = 0; i < 16; i++)
 	{
-		matrices[matricesOffset + nodeIndex].cells[i] = matrix.cells[i];
+		matrices[nodeIndex].cells[i] = matrix.cells[i];
 	}
 
 	for(nodeIndex = 1; nodeIndex < nodeCount; nodeIndex++)
 	{
 		int particleIndex = (nodeIndex - 1) * 3;
-		float3 particleEulerRotation = make_float3(particle->positions[particleIndex],
-												   particle->positions[particleIndex + 1],
-												   particle->positions[particleIndex + 2]);
+		float3 particleEulerRotation = make_float3(particle.positions[particleIndex],
+												   particle.positions[particleIndex + 1],
+												   particle.positions[particleIndex + 2]);
 
 		Matrix tempMat = createMatrix(1.0f);
 		tempMat = rotateEuler(tempMat, particleEulerRotation);
 		tempMat = translateMatrix(tempMat, make_float3(chain[nodeIndex].length, 0.0f, 0.0f));
 		int parentIdx = chain[nodeIndex].parentIndex;
-		matrix = multiplyMatrices(matrices[matricesOffset + parentIdx], tempMat);
+		matrix = multiplyMatrices(matrices[parentIdx], tempMat);
 		for (int i = 0; i < 16; i++)
 		{
-			matrices[matricesOffset + nodeIndex].cells[i] = matrix.cells[i];
+			matrices[nodeIndex].cells[i] = matrix.cells[i];
 		}
 	}
 }
@@ -81,13 +80,13 @@ __device__ bool checkCollisions(NodeCUDA *chain, ParticleNew particle /*, Collid
 	return false;
 }
 
-__device__ float calculateDistanceNew(NodeCUDA *chain, ParticleNew particle, Matrix *matrices, int particleThreadIdx)
+__device__ float calculateDistanceNew(NodeCUDA *chain, ParticleNew particle)
 {
 	float rotationDifference = 0.0f;
 	float distance = 0.0f;
 	int nodeCount = NODE_COUNT;
-
-	updateChainMatrices(chain, &particle, matrices, particleThreadIdx);
+	Matrix matrices[NODE_COUNT];
+	updateChainMatrices(chain, particle, matrices);
 	for(int ind = 1; ind < nodeCount; ind++)
 	{
 		float3 chainRotation = chain[ind].rotation;
@@ -99,8 +98,12 @@ __device__ float calculateDistanceNew(NodeCUDA *chain, ParticleNew particle, Mat
 		rotationDifference = rotationDifference + magnitudeSqr(chainRotation - particleRotation);
 		
 		if (chain[ind].nodeType == NodeType::effectorNode)
-		{		
-			Matrix model = matrices[nodeCount * particleThreadIdx + ind];  /*calculateModelMatrix(chain,&particle, ind);*/
+		{
+			Matrix model;// = calculateModelMatrix(chain, &particle, ind);
+			for (int i = 0; i < 16; i++)
+			{
+				model.cells[i] = matrices[ind].cells[i];
+			}
 			float4 position = make_float4(0.0f, 0.0f, 0.0f, 1.0f);
 			position = multiplyMatByVec(model, position);
 
@@ -118,7 +121,7 @@ __device__ float calculateDistanceNew(NodeCUDA *chain, ParticleNew particle, Mat
 	return distance + angleWeight/(DEGREES_OF_FREEDOM / 3) * rotationDifference;
 }
 
-__global__ void simulateParticlesNewKernel(ParticleNew *particles, float *localBests, Matrix *matrices, curandState_t *randoms, int size, NodeCUDA *chain, Config config, CoordinatesNew global, float globalMin)
+__global__ void simulateParticlesNewKernel(ParticleNew *particles, float *localBests, curandState_t *randoms, int size, NodeCUDA *chain, Config config, CoordinatesNew global, float globalMin)
 {
 	extern __shared__ NodeCUDA sharedChain[];
 
@@ -151,7 +154,7 @@ __global__ void simulateParticlesNewKernel(ParticleNew *particles, float *localB
 		//	particles[i].positions[deg + 1] = clamp(particles[i].positions[deg+1], chain[ind].minRotation.y, chain[ind].maxRotation.y);
 		//	particles[i].positions[deg + 2] = clamp(particles[i].positions[deg+2], chain[ind].minRotation.z, chain[ind].maxRotation.z);
 		//}	
-		float currentDistance = calculateDistanceNew(sharedChain, particles[i], matrices, i);
+		float currentDistance = calculateDistanceNew(sharedChain, particles[i]);
 		
 		if (currentDistance < localBests[i])
 		{
@@ -167,7 +170,7 @@ __global__ void simulateParticlesNewKernel(ParticleNew *particles, float *localB
 }
 
 
-__global__ void initParticlesNewKernel(ParticleNew *particles, float *localBests, Matrix *matrices, curandState_t *randoms, NodeCUDA * chain, int size)
+__global__ void initParticlesNewKernel(ParticleNew *particles, float *localBests, curandState_t *randoms, NodeCUDA * chain, int size)
 {
 	extern __shared__ NodeCUDA sharedChain[];
 
@@ -217,7 +220,7 @@ __global__ void initParticlesNewKernel(ParticleNew *particles, float *localBests
 		}
 
 		//Calculate bests
-		localBests[i] = calculateDistanceNew(sharedChain, particles[i], matrices, i);
+		localBests[i] = calculateDistanceNew(sharedChain, particles[i]);
 		
 	}
 
@@ -225,7 +228,7 @@ __global__ void initParticlesNewKernel(ParticleNew *particles, float *localBests
 
 
 
-cudaError_t calculatePSONew(ParticleNew *particles, float *bests, Matrix *matrices, curandState_t *randoms, int size, NodeCUDA *chain, Config config, CoordinatesNew *result)
+cudaError_t calculatePSONew(ParticleNew *particles, float *bests, curandState_t *randoms, int size, NodeCUDA *chain, Config config, CoordinatesNew *result)
 {
 	cudaError_t status;
 	CoordinatesNew global;
@@ -233,7 +236,7 @@ cudaError_t calculatePSONew(ParticleNew *particles, float *bests, Matrix *matric
 	int numBlocks = (size + blockSize - 1) / blockSize;
 	int sharedMemorySize = sizeof(NodeCUDA)*((DEGREES_OF_FREEDOM / 3) + 1);
 
-	initParticlesNewKernel << <numBlocks, blockSize, sharedMemorySize>> > (particles, bests, matrices, randoms, chain, size);
+	initParticlesNewKernel << <numBlocks, blockSize, sharedMemorySize>> > (particles, bests, randoms, chain, size);
 	checkCuda(status = cudaGetLastError());
 	if (status != cudaSuccess) return status;
 	checkCuda(status = cudaDeviceSynchronize());
@@ -251,7 +254,7 @@ cudaError_t calculatePSONew(ParticleNew *particles, float *bests, Matrix *matric
 
 	for (int i = 0; i < config._iterations; i++)
 	{
-		simulateParticlesNewKernel << <numBlocks, blockSize, sharedMemorySize >> > (particles, bests, matrices, randoms, size, chain, config, global, globalMin);
+		simulateParticlesNewKernel << <numBlocks, blockSize, sharedMemorySize >> > (particles, bests, randoms, size, chain, config, global, globalMin);
 		checkCuda(status = cudaGetLastError());
 		if (status != cudaSuccess) return status;
 		checkCuda(status = cudaDeviceSynchronize());

@@ -26,7 +26,7 @@ bool rotate = false;
 glm::mat4 view = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -5.0f));
 
 extern cudaError_t initGenerators(curandState_t *randoms, int size);
-extern cudaError_t calculatePSONew(ParticleNew *particles, float *bests, Matrix *matrices, curandState_t *randoms, int size, NodeCUDA *chain, Config config, CoordinatesNew *result);
+extern cudaError_t calculatePSONew(ParticleNew *particles, float *bests, curandState_t *randoms, int size, NodeCUDA *chain, Config config, CoordinatesNew *result);
 GLFWwindow* initOpenGLContext();
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
@@ -151,7 +151,6 @@ int main(int argc, char** argv)
 	NodeCUDA* chainCuda = nodeArm->AllocateCUDA();
 	curandState_t *randoms;
 	ParticleNew *particles;
-	Matrix *matrices;
 
 	Config config;
 	float *bests;
@@ -159,7 +158,6 @@ int main(int argc, char** argv)
 	cudaMalloc((void**)&randoms, N * sizeof(curandState_t));
 	cudaMallocManaged((void**)&particles, N * sizeof(ParticleNew));
 	cudaMallocManaged((void**)&bests, N * sizeof(float));
-	cudaMallocManaged((void**)&matrices, N * NODE_COUNT * sizeof(Matrix));
 	initGenerators(randoms, N);
 
 	while (!glfwWindowShouldClose(window))
@@ -172,7 +170,7 @@ int main(int argc, char** argv)
 		CoordinatesNew coords;
 
 		nodeArm->ToCUDA(chainCuda);
-		status = calculatePSONew(particles, bests, matrices, randoms, N, chainCuda, config, &coords);
+		status = calculatePSONew(particles, bests, randoms, N, chainCuda, config, &coords);
 		if (status != cudaSuccess) break;
 		int ind = 0;
 		nodeArm->FromCoords(coords,&ind);
@@ -208,7 +206,6 @@ int main(int argc, char** argv)
 	cudaFree(bests);
 	cudaFree(chainCuda);
 	cudaFree(particles);
-	cudaFree(matrices);
 	cudaFree(randoms);
 	delete(nodeArm);
 	
