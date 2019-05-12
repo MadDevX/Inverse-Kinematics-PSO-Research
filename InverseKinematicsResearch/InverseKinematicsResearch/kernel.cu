@@ -181,7 +181,36 @@ __global__ void initParticlesNewKernel(ParticleNew *particles, float *localBests
 
 }
 
+__global__ void checkCollisionKernel(float x1, float x2)
+{
+	obj_t box1, box2;
+	float3 position;
+	float4 rotation = make_float4(0.0f, 0.0f, 0.0f, 0.0f);
+	box2.quat = box1.quat = rotation;
+	box2.x = box1.x = 1.0f;
+	box2.y = box1.y = 1.0f;
+	box2.z = box1.z = 1.0f;
 
+	box1.pos = make_float3(x1, 0.0f, 0.0f);
+	box2.pos = make_float3(x2, 0.0f, 0.0f);
+
+	GJKData_t ccd;
+	CCD_INIT(&ccd);
+
+	ccd.max_iterations = 100;
+	int intersect = GJKIntersect(&box1, &box2, &ccd);
+	printf("intersect result: %d\n", intersect);
+}
+
+cudaError_t checkCollision(float x1, float x2)
+{
+	cudaError_t status;
+	checkCollisionKernel << <1, 1 >> > (x1, x2);
+	checkCuda(status = cudaGetLastError());
+	if (status != cudaSuccess) return status;
+	checkCuda(status = cudaDeviceSynchronize());
+	return status;
+}
 
 cudaError_t calculatePSONew(ParticleNew *particles, float *bests, curandState_t *randoms, int size, NodeCUDA *chain, Config config, CoordinatesNew *result)
 {

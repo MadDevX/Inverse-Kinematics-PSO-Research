@@ -23,6 +23,7 @@ bool rotate = false;
 
 glm::mat4 view = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -5.0f));
 
+extern cudaError_t checkCollision(float x1, float x2);
 extern cudaError_t initGenerators(curandState_t *randoms, int size);
 extern cudaError_t calculatePSONew(ParticleNew *particles, float *bests, curandState_t *randoms, int size, NodeCUDA *chain, Config config, CoordinatesNew *result);
 GLFWwindow* initOpenGLContext();
@@ -44,6 +45,8 @@ int main(int argc, char** argv)
 	{
 		N = atoi(argv[1]);
 	}
+
+	checkCollision(5.0f, 3.999f);
 
 	#pragma region GLfunctions
 
