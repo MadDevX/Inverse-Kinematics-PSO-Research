@@ -97,7 +97,7 @@
   <ItemGroup>
     <ClCompile Include="glad.c" />
     <ClCompile Include="Main.cpp" />
-    <ClCompile Include="GJKIntersection.c" />
+    <ClCompile Include="GJKIntersection.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="3.3.jointShader.frag" />

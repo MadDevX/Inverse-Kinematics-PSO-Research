@@ -28,7 +28,7 @@
   <ItemGroup>
     <ClCompile Include="glad.c" />
     <ClCompile Include="Main.cpp" />
-    <ClCompile Include="GJKIntersection.c">
+    <ClCompile Include="GJKIntersection.h">
       <Filter>CollisionLib</Filter>
     </ClCompile>
   </ItemGroup>
