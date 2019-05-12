@@ -9,11 +9,6 @@ struct support {
 
 typedef struct support support_t;
 
-void SupportCopy(support_t *, const support_t *s);
-
-inline void SupportCopy(support_t *d, const support_t *s)
-{
-	*d = *s;
-}
+__device__ void SupportCopy(support_t *, const support_t *s);
 
 

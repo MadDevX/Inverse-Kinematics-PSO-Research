@@ -2,6 +2,9 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <CudaCompile Include="kernel.cu" />
+    <CudaCompile Include="vector_operations.cu">
+      <Filter>Operations</Filter>
+    </CudaCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Shaders">
@@ -28,7 +31,7 @@
   <ItemGroup>
     <ClCompile Include="glad.c" />
     <ClCompile Include="Main.cpp" />
-    <ClCompile Include="GJKIntersection.h">
+    <ClCompile Include="GJKIntersection.cuh">
       <Filter>CollisionLib</Filter>
     </ClCompile>
   </ItemGroup>
@@ -58,10 +61,10 @@
     <ClInclude Include="vector_operations.cuh">
       <Filter>Operations</Filter>
     </ClInclude>
-    <ClInclude Include="support.h">
+    <ClInclude Include="support.cuh">
       <Filter>CollisionLib</Filter>
     </ClInclude>
-    <ClInclude Include="simplex.h">
+    <ClInclude Include="simplex.cuh">
       <Filter>CollisionLib</Filter>
     </ClInclude>
   </ItemGroup>
