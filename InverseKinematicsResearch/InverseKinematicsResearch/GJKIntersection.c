@@ -4,12 +4,6 @@
 
 #define CCD_INIT(ccd) \
     do { \
-        (ccd)->first_dir = ccdFirstDirDefault; \
-        (ccd)->support1 = NULL; \
-        (ccd)->support2 = NULL; \
-        (ccd)->center1  = NULL; \
-        (ccd)->center2  = NULL; \
-        \
         (ccd)->max_iterations = (unsigned long)-1; \
         (ccd)->epa_tolerance = CCD_REAL(0.0001); \
         (ccd)->mpr_tolerance = CCD_REAL(0.0001); \
@@ -22,31 +16,33 @@
 #define F3ZERO make_float3(0.0f,0.0f,0.0f)
 
 
-struct collisionData {
+struct GJKData {
 	unsigned long max_iterations; //!< Maximal number of iterations
 	float epa_tolerance;
 	float mpr_tolerance; //!< Boundary tolerance for MPR algorithm
 	float dist_tolerance;
 };
 
-typedef struct collisionData collisionData_t;
+typedef struct GJKData GJKData_t;
 
 
-void firstDir(const void *obj1, const void *obj2, float3 *dir);
+void firstDir(const void *obj1, const void *obj2, float3 *dir) {
+	dir->x = ONE;
+	dir->y = ONE;
+	dir->z = ZERO;
+}
 
 void supportBox(const void *obj, const float3 *dir, float3 *vec);
 
-void centerBox(const void *obj1, float3 *center);
-
-int ccdGJKIntersect(const void *obj1, const void *obj2, const collisionData_t *ccd)
+int GJKIntersect(const void *obj1, const void *obj2, const GJKData_t *data)
 {
 	simplex_t simplex;
-	return __ccdGJK(obj1, obj2, ccd, &simplex) == 0;
+	return GJK(obj1, obj2, data, &simplex) == 0;
 }
 
 
-static int __ccdGJK(const void *obj1, const void *obj2,
-	const collisionData_t *ccd, simplex_t *simplex)
+static int GJK(const void *obj1, const void *obj2,
+	const GJKData_t *data, simplex_t *simplex)
 {
 	unsigned long iterations;
 	float3 dir; // direction vector
@@ -54,23 +50,23 @@ static int __ccdGJK(const void *obj1, const void *obj2,
 	int do_simplex_res;
 
 	// initialize simplex struct
-	ccdSimplexInit(simplex);
+	SimplexInit(simplex);
 
 	// get first direction
 	firstDir(obj1, obj2, &dir);
 	// get first support point
-	__ccdSupport(obj1, obj2, &dir, ccd, &last);
+	SupportCalc(obj1, obj2, &dir, &last);
 	// and add this point to simplex as last one
-	ccdSimplexAdd(simplex, &last);
+	SimplexAdd(simplex, &last);
 
 	// set up direction vector to as (O - last) which is exactly -last
 	ccdVec3Copy(&dir, &last.v);
 	ccdVec3Scale(&dir, -ONE);
 
 	// start iterations
-	for (iterations = 0UL; iterations < ccd->max_iterations; ++iterations) {
+	for (iterations = 0UL; iterations < data->max_iterations; ++iterations) {
 		// obtain support point
-		__ccdSupport(obj1, obj2, &dir, ccd, &last);
+		SupportCalc(obj1, obj2, &dir, &last);
 
 		// check if farthest point in Minkowski difference in direction dir
 		// isn't somewhere before origin (the test on negative dot product)
@@ -80,7 +76,7 @@ static int __ccdGJK(const void *obj1, const void *obj2,
 		}
 
 		// add last support vector to simplex
-		ccdSimplexAdd(simplex, &last);
+		SimplexAdd(simplex, &last);
 
 		// if doSimplex returns 1 if objects intersect, -1 if objects don't
 		// intersect and 0 if algorithm should continue
@@ -92,7 +88,7 @@ static int __ccdGJK(const void *obj1, const void *obj2,
 			return -1; // intersection not found
 		}
 
-		if (ccdIsZERO(ccdVec3Len2(&dir))) {
+		if (IsZERO(Vec3Len2(&dir))) {
 			return -1; // intersection not found
 		}
 	}
@@ -101,9 +97,7 @@ static int __ccdGJK(const void *obj1, const void *obj2,
 	return -1;
 }
 
-void __ccdSupport(const void *obj1, const void *obj2,
-	const float3 *_dir, const collisionData_t *ccd,
-	support_t *supp)
+void SupportCalc(const void *obj1, const void *obj2, const float3 *_dir, support_t *supp)
 {
 	float3 dir;
 
@@ -125,11 +119,11 @@ void __ccdSupport(const void *obj1, const void *obj2,
 
 static int doSimplex(simplex_t *simplex, float3 *dir)
 {
-	if (ccdSimplexSize(simplex) == 2) {
+	if (SimplexSize(simplex) == 2) {
 		// simplex contains segment only one segment
 		return doSimplex2(simplex, dir);
 	}
-	else if (ccdSimplexSize(simplex) == 3) {
+	else if (SimplexSize(simplex) == 3) {
 		// simplex contains triangle
 		return doSimplex3(simplex, dir);
 	}
@@ -147,9 +141,9 @@ static int doSimplex2(simplex_t *simplex, float3 *dir)
 	float dot;
 
 	// get last added as A
-	A = ccdSimplexLast(simplex);
+	A = SimplexLast(simplex);
 	// get the other point
-	B = ccdSimplexPoint(simplex, 0);
+	B = SimplexPoint(simplex, 0);
 	// compute AB oriented segment
 	ccdVec3Sub2(&AB, &B->v, &A->v);
 	// compute AO vector
@@ -161,15 +155,15 @@ static int doSimplex2(simplex_t *simplex, float3 *dir)
 
 	// check if origin doesn't lie on AB segment
 	ccdVec3Cross(&tmp, &AB, &AO);
-	if (ccdIsZERO(ccdVec3Len2(&tmp)) && dot > ZERO) {
+	if (IsZERO(Vec3Len2(&tmp)) && dot > ZERO) {
 		return 1;
 	}
 
 	// check if origin is in area where AB segment is
-	if (ccdIsZERO(dot) || dot < ZERO) {
+	if (IsZERO(dot) || dot < ZERO) {
 		// origin is in outside are of A
-		ccdSimplexSet(simplex, 0, A);
-		ccdSimplexSetSize(simplex, 1);
+		SimplexSet(simplex, 0, A);
+		SimplexSetSize(simplex, 1);
 		ccdVec3Copy(dir, &AO);
 	}
 	else {
@@ -190,14 +184,14 @@ static int doSimplex3(simplex_t *simplex, float3 *dir)
 	float dot, dist;
 
 	// get last added as A
-	A = ccdSimplexLast(simplex);
+	A = SimplexLast(simplex);
 	// get the other points
-	B = ccdSimplexPoint(simplex, 1);
-	C = ccdSimplexPoint(simplex, 0);
+	B = SimplexPoint(simplex, 1);
+	C = SimplexPoint(simplex, 0);
 
 	// check touching contact
 	dist = ccdVec3PointTriDist2(F3ZERO, &A->v, &B->v, &C->v, NULL);
-	if (ccdIsZERO(dist)) {
+	if (IsZERO(dist)) {
 		return 1;
 	}
 
@@ -218,26 +212,26 @@ static int doSimplex3(simplex_t *simplex, float3 *dir)
 
 	ccdVec3Cross(&tmp, &ABC, &AC);
 	dot = ccdVec3Dot(&tmp, &AO);
-	if (ccdIsZERO(dot) || dot > ZERO) {
+	if (IsZERO(dot) || dot > ZERO) {
 		dot = ccdVec3Dot(&AC, &AO);
-		if (ccdIsZERO(dot) || dot > ZERO) {
+		if (IsZERO(dot) || dot > ZERO) {
 			// C is already in place
-			ccdSimplexSet(simplex, 1, A);
-			ccdSimplexSetSize(simplex, 2);
+			SimplexSet(simplex, 1, A);
+			SimplexSetSize(simplex, 2);
 			tripleCross(&AC, &AO, &AC, dir);
 		}
 		else {
 		ccd_do_simplex3_45:
 			dot = ccdVec3Dot(&AB, &AO);
-			if (ccdIsZERO(dot) || dot > ZERO) {
-				ccdSimplexSet(simplex, 0, B);
-				ccdSimplexSet(simplex, 1, A);
-				ccdSimplexSetSize(simplex, 2);
+			if (IsZERO(dot) || dot > ZERO) {
+				SimplexSet(simplex, 0, B);
+				SimplexSet(simplex, 1, A);
+				SimplexSetSize(simplex, 2);
 				tripleCross(&AB, &AO, &AB, dir);
 			}
 			else {
-				ccdSimplexSet(simplex, 0, A);
-				ccdSimplexSetSize(simplex, 1);
+				SimplexSet(simplex, 0, A);
+				SimplexSetSize(simplex, 1);
 				ccdVec3Copy(dir, &AO);
 			}
 		}
@@ -245,19 +239,19 @@ static int doSimplex3(simplex_t *simplex, float3 *dir)
 	else {
 		ccdVec3Cross(&tmp, &AB, &ABC);
 		dot = ccdVec3Dot(&tmp, &AO);
-		if (ccdIsZERO(dot) || dot > ZERO) {
+		if (IsZERO(dot) || dot > ZERO) {
 			goto ccd_do_simplex3_45;
 		}
 		else {
 			dot = ccdVec3Dot(&ABC, &AO);
-			if (ccdIsZERO(dot) || dot > ZERO) {
+			if (IsZERO(dot) || dot > ZERO) {
 				ccdVec3Copy(dir, &ABC);
 			}
 			else {
 				support_t Ctmp;
-				ccdSupportCopy(&Ctmp, C);
-				ccdSimplexSet(simplex, 0, B);
-				ccdSimplexSet(simplex, 1, &Ctmp);
+				SupportCopy(&Ctmp, C);
+				SimplexSet(simplex, 0, B);
+				SimplexSet(simplex, 1, &Ctmp);
 
 				ccdVec3Copy(dir, &ABC);
 				ccdVec3Scale(dir, -ONE);
@@ -277,33 +271,33 @@ static int doSimplex4(simplex_t *simplex, float3 *dir)
 	float dist;
 
 	// get last added as A
-	A = ccdSimplexLast(simplex);
+	A = SimplexLast(simplex);
 	// get the other points
-	B = ccdSimplexPoint(simplex, 2);
-	C = ccdSimplexPoint(simplex, 1);
-	D = ccdSimplexPoint(simplex, 0);
+	B = SimplexPoint(simplex, 2);
+	C = SimplexPoint(simplex, 1);
+	D = SimplexPoint(simplex, 0);
 
 	// check if tetrahedron is really tetrahedron (has volume > 0)
 	// if it is not simplex can't be expanded and thus no intersection is
 	// found
 	dist = ccdVec3PointTriDist2(&A->v, &B->v, &C->v, &D->v, NULL);
-	if (ccdIsZERO(dist)) {
+	if (IsZERO(dist)) {
 		return -1;
 	}
 
 	// check if origin lies on some of tetrahedron's face - if so objects
 	// intersect
 	dist = ccdVec3PointTriDist2(F3ZERO, &A->v, &B->v, &C->v, NULL);
-	if (ccdIsZERO(dist))
+	if (IsZERO(dist))
 		return 1;
 	dist = ccdVec3PointTriDist2(F3ZERO, &A->v, &C->v, &D->v, NULL);
-	if (ccdIsZERO(dist))
+	if (IsZERO(dist))
 		return 1;
 	dist = ccdVec3PointTriDist2(F3ZERO, &A->v, &B->v, &D->v, NULL);
-	if (ccdIsZERO(dist))
+	if (IsZERO(dist))
 		return 1;
 	dist = ccdVec3PointTriDist2(F3ZERO, &B->v, &C->v, &D->v, NULL);
-	if (ccdIsZERO(dist))
+	if (IsZERO(dist))
 		return 1;
 
 	// compute AO, AB, AC, AD segments and ABC, ACD, ADB normal vectors
@@ -340,21 +334,21 @@ static int doSimplex4(simplex_t *simplex, float3 *dir)
 		// case
 
 		// D and C are in place
-		ccdSimplexSet(simplex, 2, A);
-		ccdSimplexSetSize(simplex, 3);
+		SimplexSet(simplex, 2, A);
+		SimplexSetSize(simplex, 3);
 	}
 	else if (!AC_O) {
 		// C is farthest
-		ccdSimplexSet(simplex, 1, D);
-		ccdSimplexSet(simplex, 0, B);
-		ccdSimplexSet(simplex, 2, A);
-		ccdSimplexSetSize(simplex, 3);
+		SimplexSet(simplex, 1, D);
+		SimplexSet(simplex, 0, B);
+		SimplexSet(simplex, 2, A);
+		SimplexSetSize(simplex, 3);
 	}
 	else { // (!AD_O)
-		ccdSimplexSet(simplex, 0, C);
-		ccdSimplexSet(simplex, 1, B);
-		ccdSimplexSet(simplex, 2, A);
-		ccdSimplexSetSize(simplex, 3);
+		SimplexSet(simplex, 0, C);
+		SimplexSet(simplex, 1, B);
+		SimplexSet(simplex, 2, A);
+		SimplexSetSize(simplex, 3);
 	}
 
 	return doSimplex3(simplex, dir);
@@ -362,11 +356,11 @@ static int doSimplex4(simplex_t *simplex, float3 *dir)
 
 static int doSimplex(simplex_t *simplex, float3 *dir)
 {
-	if (ccdSimplexSize(simplex) == 2) {
+	if (SimplexSize(simplex) == 2) {
 		// simplex contains segment only one segment
 		return doSimplex2(simplex, dir);
 	}
-	else if (ccdSimplexSize(simplex) == 3) {
+	else if (SimplexSize(simplex) == 3) {
 		// simplex contains triangle
 		return doSimplex3(simplex, dir);
 	}
@@ -377,33 +371,23 @@ static int doSimplex(simplex_t *simplex, float3 *dir)
 	}
 }
 
-
-
-
 #pragma endregion
 
 #pragma region  inlines
-void ccdSimplexInit(simplex_t *s)
+void SimplexInit(simplex_t *s)
 {
 	s->last = -1;
 }
 
 
-float ccdVec3Len2(const float3 *v)
+float Vec3Len2(const float3 *v)
 {
 	return ccdVec3Dot(v, v);
 }
 
-int ccdIsZERO(float val)
+int IsZERO(float val)
 {
 	return CCD_FABS(val) < COL_EPS;
-}
-
-void ccdSimplexAdd(simplex_t *s, const support_t *v)
-{
-	// here is no check on boundaries in sake of speed
-	++s->last;
-	ccdSupportCopy(s->ps + s->last, v);
 }
 
 
