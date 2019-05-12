@@ -97,6 +97,7 @@
   <ItemGroup>
     <ClCompile Include="glad.c" />
     <ClCompile Include="Main.cpp" />
+    <ClCompile Include="GJKIntersection.c" />
   </ItemGroup>
   <ItemGroup>
     <None Include="3.3.jointShader.frag" />
@@ -110,6 +111,8 @@
     <ClInclude Include="Node.h" />
     <ClInclude Include="Particle.h" />
     <ClInclude Include="quaternion_operations.cuh" />
+    <ClInclude Include="simplex.h" />
+    <ClInclude Include="support.h" />
     <ClInclude Include="utility_kernels.cuh" />
     <ClInclude Include="vector_operations.cuh" />
   </ItemGroup>

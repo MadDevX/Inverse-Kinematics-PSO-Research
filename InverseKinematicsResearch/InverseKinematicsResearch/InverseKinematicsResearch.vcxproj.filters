@@ -13,6 +13,9 @@
     <Filter Include="Operations">
       <UniqueIdentifier>{19bf1279-c91d-473e-a78a-58610e27e0d2}</UniqueIdentifier>
     </Filter>
+    <Filter Include="CollisionLib">
+      <UniqueIdentifier>{2a054af9-66a9-4391-a3ca-2fafc275ea01}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <None Include="3.3.jointShader.frag">
@@ -25,6 +28,9 @@
   <ItemGroup>
     <ClCompile Include="glad.c" />
     <ClCompile Include="Main.cpp" />
+    <ClCompile Include="GJKIntersection.c">
+      <Filter>CollisionLib</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="matrix_operations.cuh">
@@ -51,6 +57,12 @@
     <ClInclude Include="ik_constants.h" />
     <ClInclude Include="vector_operations.cuh">
       <Filter>Operations</Filter>
+    </ClInclude>
+    <ClInclude Include="support.h">
+      <Filter>CollisionLib</Filter>
+    </ClInclude>
+    <ClInclude Include="simplex.h">
+      <Filter>CollisionLib</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
