@@ -94,10 +94,12 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <CudaCompile Include="kernel.cu" />
+    <CudaCompile Include="vector_operations.cu" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="glad.c" />
     <ClCompile Include="Main.cpp" />
+    <ClCompile Include="GJKIntersection.cuh" />
   </ItemGroup>
   <ItemGroup>
     <None Include="3.3.jointShader.frag" />
@@ -111,6 +113,8 @@
     <ClInclude Include="Node.h" />
     <ClInclude Include="Particle.h" />
     <ClInclude Include="quaternion_operations.cuh" />
+    <ClInclude Include="simplex.cuh" />
+    <ClInclude Include="support.cuh" />
     <ClInclude Include="utility_kernels.cuh" />
     <ClInclude Include="vector_operations.cuh" />
   </ItemGroup>
