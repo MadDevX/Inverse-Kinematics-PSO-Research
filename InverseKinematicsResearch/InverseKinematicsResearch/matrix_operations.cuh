@@ -75,6 +75,42 @@ __device__ Matrix quaternionToMatrix(float4 rotation)
 
 }
 
+__device__ float4 matrixToQuaternion(Matrix m)
+{
+	float4 quat;
+	float tr = m.cells[0] + m.cells[5] + m.cells[10];
+
+	if (tr > 0) {
+		float S = sqrt(tr + 1.0) * 2; // S=4*qw 
+		quat.w = 0.25 * S;
+		quat.x = (m.cells[9] - m.cells[6]) / S;
+		quat.y = (m.cells[2] - m.cells[8]) / S;
+		quat.z = (m.cells[4] - m.cells[1]) / S;
+	}
+	else if ((m.cells[0] > m.cells[5])&(m.cells[0] > m.cells[10])) {
+		float S = sqrt(1.0 + m.cells[0] - m.cells[5] - m.cells[10]) * 2; // S=4*qx 
+		quat.w = (m.cells[9] - m.cells[6]) / S;
+		quat.x = 0.25 * S;
+		quat.y = (m.cells[1] + m.cells[4]) / S;
+		quat.z = (m.cells[2] + m.cells[8]) / S;
+	}
+	else if (m.cells[5] > m.cells[10]) {
+		float S = sqrt(1.0 + m.cells[5] - m.cells[0] - m.cells[10]) * 2; // S=4*qy
+		quat.w = (m.cells[2] - m.cells[8]) / S;
+		quat.x = (m.cells[1] + m.cells[4]) / S;
+		quat.y = 0.25 * S;
+		quat.z = (m.cells[6] + m.cells[9]) / S;
+	}
+	else {
+		float S = sqrt(1.0 + m.cells[10] - m.cells[0] - m.cells[5]) * 2; // S=4*qz
+		quat.w = (m.cells[4] - m.cells[1]) / S;
+		quat.x = (m.cells[2] + m.cells[8]) / S;
+		quat.y = (m.cells[6] + m.cells[9]) / S;
+		quat.z = 0.25 * S;
+	}
+	return quat;
+}
+
 __device__ Matrix scaleMatrix(Matrix left, float3 scale)
 {
 	Matrix mat = createMatrix(1.0f);

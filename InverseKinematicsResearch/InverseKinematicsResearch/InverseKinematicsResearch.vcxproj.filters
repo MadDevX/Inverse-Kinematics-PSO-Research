@@ -67,5 +67,8 @@
     <ClInclude Include="simplex.cuh">
       <Filter>CollisionLib</Filter>
     </ClInclude>
+    <ClInclude Include="BoxCollider.h">
+      <Filter>Structures</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

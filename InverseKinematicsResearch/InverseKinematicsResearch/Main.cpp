@@ -8,11 +8,10 @@
 #include <im3d/im3d.h>
 #include <cuda.h>
 #include <curand_kernel.h>
-#include <ccd/ccd.h>
-#include <ccd/quat.h>
 #include "Models.h"
 #include "Particle.h"
 #include "Node.h"
+#include "BoxCollider.h"
 int WINDOW_WIDTH = 800;
 int WINDOW_HEIGHT = 600;
 int N = 4096;
@@ -27,7 +26,7 @@ glm::mat4 view = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -5.0f));
 
 extern cudaError_t checkCollision(float x1, float x2);
 extern cudaError_t initGenerators(curandState_t *randoms, int size);
-extern cudaError_t calculatePSONew(ParticleNew *particles, float *bests, curandState_t *randoms, int size, NodeCUDA *chain, Config config, CoordinatesNew *result);
+extern cudaError_t calculatePSONew(ParticleNew *particles, float *bests, curandState_t *randoms, int size, NodeCUDA *chain, Config config, CoordinatesNew *result, obj_t* colliders, int colliderCount);
 GLFWwindow* initOpenGLContext();
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
@@ -36,42 +35,12 @@ void calculateDeltaTime();
 unsigned int initVAO(unsigned int *VBO);
 unsigned int initCoordVAO(unsigned int *VBO);
 void drawCoordinates(Shader shader, unsigned int VAO);
+void initColliders(obj_t* colliders, int colliderCount);
+void drawColliders(obj_t* colliders, int colliderCount, Shader shader, unsigned int VAO);
 
 TargetNode* movingTarget;
 OriginNode* nodeArm;
 TargetNode** targets;
-
-struct obj_t
-{
-	float x, y, z;
-	ccd_vec3_t pos;
-	ccd_quat_t quat;
-};
-
-void support(const void *_obj, const ccd_vec3_t *_dir, ccd_vec3_t *v)
-{
-	// assume that obj_t is user-defined structure that holds info about
-	// object (in this case box: x, y, z, pos, quat - dimensions of box,
-	// position and rotation)
-	obj_t *obj = (obj_t *)_obj;
-	ccd_vec3_t dir;
-	ccd_quat_t qinv;
-
-	// apply rotation on direction vector
-	ccdVec3Copy(&dir, _dir);
-	ccdQuatInvert2(&qinv, &obj->quat);
-	ccdQuatRotVec(&dir, &qinv);
-
-	// compute support point in specified direction
-	ccdVec3Set(v, 
-		ccdSign(ccdVec3X(&dir)) * obj->x * CCD_REAL(0.5),
-		ccdSign(ccdVec3Y(&dir)) * obj->y * CCD_REAL(0.5),
-		ccdSign(ccdVec3Z(&dir)) * obj->z * CCD_REAL(0.5));
-	// czlowiek to kubek q.e.d.
-	// transform support point according to position and rotation of object
-	ccdQuatRotVec(v, &obj->quat);
-	ccdVec3Add(v, &obj->pos);
-}
 
 
 int main(int argc, char** argv)
@@ -80,29 +49,6 @@ int main(int argc, char** argv)
 	{
 		N = atoi(argv[1]);
 	}
-	obj_t box1, box2;
-	ccd_vec3_t position;
-	ccd_quat_t rotation;
-	ccdQuatSet(&rotation, 0.0f, 0.0f, 0.0f, 1.0f);
-	box2.quat = box1.quat = rotation;
-	box2.x = box1.x = 1.0f;
-	box2.y = box1.y = 1.0f;
-	box2.z = box1.z = 1.0f;
-
-
-	ccdVec3Set(&position, 5.0f, 0.0f, 0.0f);
-	box1.pos = position;
-	ccdVec3Set(&position, 4.000001f, 0.0f, 0.0f);
-	box2.pos = position;
-
-	ccd_t ccd;
-	CCD_INIT(&ccd);
-
-	ccd.support1 = support;
-	ccd.support2 = support;
-	ccd.max_iterations = 100;
-	int intersect = ccdGJKIntersect(&box1, &box2, &ccd);
-	printf("intersect result: %d\n", intersect);
 
 	checkCollision(5.0f, 3.999f);
 
@@ -154,6 +100,7 @@ int main(int argc, char** argv)
 	NodeCUDA* chainCuda = nodeArm->AllocateCUDA();
 	curandState_t *randoms;
 	ParticleNew *particles;
+	obj_t* colliders;
 
 	Config config;
 	float *bests;
@@ -161,6 +108,8 @@ int main(int argc, char** argv)
 	cudaMalloc((void**)&randoms, N * sizeof(curandState_t));
 	cudaMallocManaged((void**)&particles, N * sizeof(ParticleNew));
 	cudaMallocManaged((void**)&bests, N * sizeof(float));
+	cudaMallocManaged((void**)&colliders, 1 * sizeof(obj_t));
+	initColliders(colliders, 1);
 	initGenerators(randoms, N);
 
 	while (!glfwWindowShouldClose(window))
@@ -173,7 +122,7 @@ int main(int argc, char** argv)
 		CoordinatesNew coords;
 
 		nodeArm->ToCUDA(chainCuda);
-		status = calculatePSONew(particles, bests, randoms, N, chainCuda, config, &coords);
+		status = calculatePSONew(particles, bests, randoms, N, chainCuda, config, &coords, colliders, 1);
 		if (status != cudaSuccess) break;
 		int ind = 0;
 		nodeArm->FromCoords(coords,&ind);
@@ -188,9 +137,10 @@ int main(int argc, char** argv)
 		shader.setMat4("projection", glm::perspective(glm::radians(45.0f), (float)WINDOW_WIDTH / WINDOW_HEIGHT, 0.1f, 100.0f));
 		drawCoordinates(shader, coordVAO);
 		nodeArm->Draw(shader, VAO);
-		nodeTarget1->DrawCurrent(shader,VAO);
+		nodeTarget1->DrawCurrent(shader, VAO);
 		nodeTarget2->DrawCurrent(shader, VAO);
 		nodeTarget3->DrawCurrent(shader, VAO);
+		drawColliders(colliders, 1, shader, VAO);
 
 		glfwSwapBuffers(window);
 		
@@ -210,6 +160,7 @@ int main(int argc, char** argv)
 	cudaFree(chainCuda);
 	cudaFree(particles);
 	cudaFree(randoms);
+	cudaFree(colliders);
 	delete(nodeArm);
 	
 	for (int i = 0; i < elbows; i++)
@@ -407,4 +358,33 @@ void calculateDeltaTime()
 	float currentFrame = (float)glfwGetTime();
 	deltaTime = currentFrame - lastFrame;
 	lastFrame = currentFrame;
+}
+
+void initColliders(obj_t* colliders, int colliderCount)
+{
+	colliders[0].pos = make_float3(1.0f, 0.0f, 0.0f);
+	colliders[0].quat = make_float4(0.0f, 0.0f, 0.0f, 1.0f);
+	colliders[0].x = colliders[0].y = colliders[0].z = 1.0f;
+}
+
+void drawBoxCollider(obj* collider, Shader shader, unsigned int VAO)
+{
+	shader.use();
+	shader.setVec3("color", 0.714f, 0.298f, 0.035f);
+	glm::mat4 model(1.0f);
+	model = glm::translate(model, glm::vec3(collider->pos.x, collider->pos.y, collider->pos.z)) * 
+		    glm::mat4_cast(glm::quat(collider->quat.w, collider->quat.x, collider->quat.y, collider->quat.z)) * 
+		    glm::scale(model, glm::vec3(collider->x, collider->y, collider->z));
+	shader.setMat4("model", model);
+	glBindVertexArray(VAO);
+	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+	glDrawArrays(GL_TRIANGLES, 0, 36);
+}
+
+void drawColliders(obj_t* colliders, int colliderCount, Shader shader, unsigned int VAO)
+{
+	for (int i = 0; i < colliderCount; i++)
+	{
+		drawBoxCollider(&colliders[i], shader, VAO);
+	}
 }

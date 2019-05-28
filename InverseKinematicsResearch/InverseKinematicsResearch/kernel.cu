@@ -74,12 +74,12 @@ __device__ Matrix calculateModelMatrix(NodeCUDA *chain, ParticleNew *particle, i
 
 //Ewentualnie kolizje moga byc sprawdzane dla odcinka i colliderow, wtedy przekazujemy do funkcji 2 x float3 i liste colliderow.
 //Wtedy checkCollision byloby wywolane w wewnetrznej petli calculateDistance.
-__device__ bool checkCollisions(NodeCUDA *chain, ParticleNew particle /*, Collider* colliders*/)
+__device__ int checkCollisions(NodeCUDA *chain, ParticleNew particle /*, Collider* colliders*/)
 {
 	return false;
 }
 
-__device__ float calculateDistanceNew(NodeCUDA *chain, ParticleNew particle)
+__device__ float calculateDistanceNew(NodeCUDA *chain, ParticleNew particle, obj_t* colliders, int colliderCount)
 {
 	float rotationDifference = 0.0f;
 	float distance = 0.0f;
@@ -95,17 +95,38 @@ __device__ float calculateDistanceNew(NodeCUDA *chain, ParticleNew particle)
 			particle.positions[(ind - 1) * 3 + 2]);
 
 		rotationDifference = rotationDifference + magnitudeSqr(chainRotation - particleRotation);
-		
+
+		Matrix model;
+		for (int i = 0; i < 16; i++)
+		{
+			model.cells[i] = matrices[ind].cells[i];
+		}
+		float4 position = make_float4(0.0f, 0.0f, 0.0f, 1.0f);
+		position = multiplyMatByVec(model, position);
+		float4 rotation = matrixToQuaternion(model);
+
+		obj_t nodeCollider;
+		nodeCollider.pos = make_float3(position.x, position.y, position.z);
+		nodeCollider.quat = rotation;
+		nodeCollider.x = nodeCollider.y = nodeCollider.z = GIZMO_SIZE;
+
+		GJKData_t gjkData;
+		CCD_INIT(&gjkData);
+		gjkData.max_iterations = 100;
+		int intersects = 0;
+		for (int i = 0; i < colliderCount; i++)
+		{
+			intersects = GJKIntersect(&nodeCollider, &colliders[i], &gjkData);
+			if (intersects)
+			{
+				return FLT_MAX;
+			}
+			//ADD line intersections
+		}
+
+
 		if (chain[ind].nodeType == NodeType::effectorNode)
 		{
-			Matrix model;// = calculateModelMatrix(chain, &particle, ind);
-			for (int i = 0; i < 16; i++)
-			{
-				model.cells[i] = matrices[ind].cells[i];
-			}
-			float4 position = make_float4(0.0f, 0.0f, 0.0f, 1.0f);
-			position = multiplyMatByVec(model, position);
-
 			float distTmp = magnitudeSqr(make_float3(
 													position.x - chain[ind].targetPosition.x,
 													position.y - chain[ind].targetPosition.y,
@@ -120,7 +141,7 @@ __device__ float calculateDistanceNew(NodeCUDA *chain, ParticleNew particle)
 	return distance + angleWeight/(DEGREES_OF_FREEDOM / 3) * rotationDifference;
 }
 
-__global__ void simulateParticlesNewKernel(ParticleNew *particles, float *localBests, curandState_t *randoms, int size, NodeCUDA *chain, Config config, CoordinatesNew global, float globalMin)
+__global__ void simulateParticlesNewKernel(ParticleNew *particles, float *localBests, curandState_t *randoms, int size, NodeCUDA *chain, Config config, CoordinatesNew global, float globalMin, obj_t* colliders, int colliderCount)
 {
 	extern __shared__ NodeCUDA sharedChain[];
 
@@ -153,7 +174,7 @@ __global__ void simulateParticlesNewKernel(ParticleNew *particles, float *localB
 		//	particles[i].positions[deg + 1] = clamp(particles[i].positions[deg+1], chain[ind].minRotation.y, chain[ind].maxRotation.y);
 		//	particles[i].positions[deg + 2] = clamp(particles[i].positions[deg+2], chain[ind].minRotation.z, chain[ind].maxRotation.z);
 		//}	
-		float currentDistance = calculateDistanceNew(sharedChain, particles[i]);
+		float currentDistance = calculateDistanceNew(sharedChain, particles[i], colliders, colliderCount);
 		
 		if (currentDistance < localBests[i])
 		{
@@ -169,7 +190,7 @@ __global__ void simulateParticlesNewKernel(ParticleNew *particles, float *localB
 }
 
 
-__global__ void initParticlesNewKernel(ParticleNew *particles, float *localBests, curandState_t *randoms, NodeCUDA * chain, int size)
+__global__ void initParticlesNewKernel(ParticleNew *particles, float *localBests, curandState_t *randoms, NodeCUDA * chain, int size, obj_t* colliders, int colliderCount)
 {
 	extern __shared__ NodeCUDA sharedChain[];
 
@@ -219,7 +240,7 @@ __global__ void initParticlesNewKernel(ParticleNew *particles, float *localBests
 		}
 
 		//Calculate bests
-		localBests[i] = calculateDistanceNew(sharedChain, particles[i]);
+		localBests[i] = calculateDistanceNew(sharedChain, particles[i], colliders, colliderCount);
 		
 	}
 
@@ -256,7 +277,7 @@ cudaError_t checkCollision(float x1, float x2)
 	return status;
 }
 
-cudaError_t calculatePSONew(ParticleNew *particles, float *bests, curandState_t *randoms, int size, NodeCUDA *chain, Config config, CoordinatesNew *result)
+cudaError_t calculatePSONew(ParticleNew *particles, float *bests, curandState_t *randoms, int size, NodeCUDA *chain, Config config, CoordinatesNew *result, obj_t* colliders, int colliderCount)
 {
 	cudaError_t status;
 	CoordinatesNew global;
@@ -264,7 +285,7 @@ cudaError_t calculatePSONew(ParticleNew *particles, float *bests, curandState_t 
 	int numBlocks = (size + blockSize - 1) / blockSize;
 	int sharedMemorySize = sizeof(NodeCUDA)*((DEGREES_OF_FREEDOM / 3) + 1);
 
-	initParticlesNewKernel << <numBlocks, blockSize, sharedMemorySize>> > (particles, bests, randoms, chain, size);
+	initParticlesNewKernel << <numBlocks, blockSize, sharedMemorySize>> > (particles, bests, randoms, chain, size, colliders, colliderCount);
 	checkCuda(status = cudaGetLastError());
 	if (status != cudaSuccess) return status;
 	checkCuda(status = cudaDeviceSynchronize());
@@ -282,7 +303,7 @@ cudaError_t calculatePSONew(ParticleNew *particles, float *bests, curandState_t 
 
 	for (int i = 0; i < config._iterations; i++)
 	{
-		simulateParticlesNewKernel << <numBlocks, blockSize, sharedMemorySize >> > (particles, bests, randoms, size, chain, config, global, globalMin);
+		simulateParticlesNewKernel << <numBlocks, blockSize, sharedMemorySize >> > (particles, bests, randoms, size, chain, config, global, globalMin, colliders, colliderCount);
 		checkCuda(status = cudaGetLastError());
 		if (status != cudaSuccess) return status;
 		checkCuda(status = cudaDeviceSynchronize());

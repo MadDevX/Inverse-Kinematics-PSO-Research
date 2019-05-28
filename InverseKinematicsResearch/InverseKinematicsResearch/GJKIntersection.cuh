@@ -3,6 +3,7 @@
 #include <vector_types.h>
 #include "simplex.cuh"
 #include "vector_operations.cuh"
+#include "BoxCollider.h"
 #define CCD_INIT(ccd) \
     do { \
         (ccd)->max_iterations = (unsigned long)-1; \
@@ -24,14 +25,6 @@ struct GJKData{
 };
 
 typedef struct GJKData GJKData_t;
-
-struct obj
-{
-	float x, y, z;
-	float3 pos;
-	float4 quat;
-};
-typedef struct obj obj_t;
 
 
 __device__ void firstDir(const void *obj1, const void *obj2, float3 *dir);

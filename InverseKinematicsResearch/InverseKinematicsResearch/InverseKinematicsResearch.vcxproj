@@ -106,6 +106,7 @@
     <None Include="3.3.jointShader.vert" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="BoxCollider.h" />
     <ClInclude Include="ik_constants.h" />
     <ClInclude Include="KinematicChain.h" />
     <ClInclude Include="matrix_operations.cuh" />
