@@ -96,19 +96,29 @@ __device__ float calculateDistanceNew(NodeCUDA *chain, ParticleNew particle, obj
 
 		rotationDifference = rotationDifference + magnitudeSqr(chainRotation - particleRotation);
 
+		float4 originVector = make_float4(0.0f, 0.0f, 0.0f, 1.0f);
 		Matrix model;
 		for (int i = 0; i < 16; i++)
 		{
 			model.cells[i] = matrices[ind].cells[i];
 		}
-		float4 position = make_float4(0.0f, 0.0f, 0.0f, 1.0f);
-		position = multiplyMatByVec(model, position);
+		float4 position = multiplyMatByVec(model, originVector);
 		float4 rotation = matrixToQuaternion(model);
 
 		obj_t nodeCollider;
 		nodeCollider.pos = make_float3(position.x, position.y, position.z);
 		nodeCollider.quat = rotation;
 		nodeCollider.x = nodeCollider.y = nodeCollider.z = GIZMO_SIZE;
+
+
+		obj_t linkCollider;
+		float4 startPos = multiplyMatByVec(model, originVector); //this node
+		float4 endPos = multiplyMatByVec(matrices[chain[ind].parentIndex], originVector); //parent node
+		float4 centerPos = (startPos + endPos) * 0.5f;
+		linkCollider.pos = make_float3(centerPos.x, centerPos.y, centerPos.z);
+		linkCollider.quat = rotation;
+		linkCollider.x = chain[ind].length;
+		linkCollider.y = linkCollider.z = GIZMO_SIZE * 0.25f;
 
 		GJKData_t gjkData;
 		CCD_INIT(&gjkData);
@@ -121,7 +131,11 @@ __device__ float calculateDistanceNew(NodeCUDA *chain, ParticleNew particle, obj
 			{
 				return FLT_MAX;
 			}
-			//ADD line intersections
+			intersects = GJKIntersect(&linkCollider, &colliders[i], &gjkData);
+			if (intersects)
+			{
+				return FLT_MAX;
+			}
 		}
 
 

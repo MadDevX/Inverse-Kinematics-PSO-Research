@@ -377,8 +377,12 @@ void drawBoxCollider(obj* collider, Shader shader, unsigned int VAO)
 		    glm::scale(model, glm::vec3(collider->x, collider->y, collider->z));
 	shader.setMat4("model", model);
 	glBindVertexArray(VAO);
-	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 	glDrawArrays(GL_TRIANGLES, 0, 36);
+	shader.setVec3("color", 0.0f, 0.0f, 0.0f);
+	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+	glLineWidth(2.0f);
+	glDrawArrays(GL_LINE_STRIP, 0, 36);
 }
 
 void drawColliders(obj_t* colliders, int colliderCount, Shader shader, unsigned int VAO)
