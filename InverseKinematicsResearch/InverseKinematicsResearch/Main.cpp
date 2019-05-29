@@ -25,7 +25,7 @@ bool rotate = false;
 glm::mat4 view = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -5.0f));
 
 extern cudaError_t initGenerators(curandState_t *randoms, int size);
-extern cudaError_t calculatePSO(Particle *particles, float *bests, curandState_t *randoms, int size, NodeCUDA *chain, Config config, Coordinates *result, obj_t* colliders, int colliderCount);
+extern cudaError_t calculatePSO(float *particles, float *bests, curandState_t *randoms, int size, NodeCUDA *chain, Config config, Coordinates *result, obj_t* colliders, int colliderCount);
 GLFWwindow* initOpenGLContext();
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
@@ -96,14 +96,14 @@ int main(int argc, char** argv)
 	
 	NodeCUDA* chainCuda = nodeArm->AllocateCUDA();
 	curandState_t *randoms;
-	Particle *particles;
+	float *particles;
 	obj_t* colliders;
 
 	Config config;
 	float *bests;
 	
 	cudaMalloc((void**)&randoms, N * sizeof(curandState_t));
-	cudaMallocManaged((void**)&particles, N * sizeof(Particle));
+	cudaMallocManaged((void**)&particles, N * 3 * DEGREES_OF_FREEDOM * sizeof(float));
 	cudaMallocManaged((void**)&bests, N * sizeof(float));
 	cudaMallocManaged((void**)&colliders, 1 * sizeof(obj_t));
 	initColliders(colliders, 1);

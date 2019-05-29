@@ -15,6 +15,13 @@ enum NodeType
 	node
 };
 
+enum ParticleProperty
+{
+	velocity,
+	position,
+	localBest
+};
+
 struct NodeCUDA
 {
 	NodeType nodeType;
