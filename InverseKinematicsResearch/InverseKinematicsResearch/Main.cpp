@@ -37,6 +37,7 @@ unsigned int initCoordVAO(unsigned int *VBO);
 void drawCoordinates(Shader shader, unsigned int VAO);
 void initColliders(obj_t* colliders, int colliderCount);
 void drawColliders(obj_t* colliders, int colliderCount, Shader shader, unsigned int VAO);
+void rotateCollider(obj_t* collider, float time);
 
 TargetNode* movingTarget;
 OriginNode* nodeArm;
@@ -117,6 +118,8 @@ int main(int argc, char** argv)
 		calculateDeltaTime();
 		processInput(window);
 		glfwPollEvents();
+
+		//rotateCollider(&colliders[0], (float)glfwGetTime());
 
 		cudaError_t status;
 
@@ -377,6 +380,15 @@ void initColliders(obj_t* colliders, int colliderCount)
 	colliders[3].pos = make_float3(0.0f, 0.0f, 1.0f);
 	colliders[3].quat = make_float4(0.0f, 0.0f, 0.0f, 1.0f);
 	colliders[3].x = colliders[3].y = colliders[3].z = 1.0f;
+}
+
+void rotateCollider(obj_t* collider, float time)
+{
+	glm::quat rotation(glm::vec3(time, time, time));
+	collider->quat.x = rotation.x;
+	collider->quat.y = rotation.y;
+	collider->quat.z = rotation.z;
+	collider->quat.w = rotation.w;
 }
 
 void drawBoxCollider(obj* collider, Shader shader, unsigned int VAO)
