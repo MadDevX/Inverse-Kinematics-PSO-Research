@@ -114,7 +114,7 @@ public:
 		return nodeC;
 	}
 
-	void FromCoords(CoordinatesNew coords, int *nodeIndex)
+	void FromCoords(Coordinates coords, int *nodeIndex)
 	{
 		int coordIndex = ((*nodeIndex) - 1) * 3;
 		

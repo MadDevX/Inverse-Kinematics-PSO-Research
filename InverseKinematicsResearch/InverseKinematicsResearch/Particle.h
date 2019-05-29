@@ -30,34 +30,11 @@ struct NodeCUDA
 	float3 targetRotation;
 };
 
-struct KinematicChainCuda
-{
-	float3 _shoulderPosition;
-	float3 _shoulderRotation;
-	float3 _elbowRotation;
-	float3 _minShoulder;
-	float3 _maxShoulder;
-	float3 _minElbow;
-	float3 _maxElbow;
-	float _armLength;
-	float _forearmLength;
-};
-
 struct Coordinates
-{
-	float shoulderRotX = 0.0f;
-	float shoulderRotY = 0.0f;
-	float shoulderRotZ = 0.0f;
-	float elbowRotX = 0.0f;
-	float elbowRotY = 0.0f;
-	float elbowRotZ = 0.0f;
-};
-
-struct CoordinatesNew
 {
 	float *positions;
 
-	CoordinatesNew()
+	Coordinates()
 	{
 		cudaMallocManaged((void**)&positions, DEGREES_OF_FREEDOM * sizeof(float));
 		for (int i = 0; i < DEGREES_OF_FREEDOM; i++)
@@ -66,7 +43,7 @@ struct CoordinatesNew
 		}
 	}
 
-	CoordinatesNew(const CoordinatesNew &coords)
+	Coordinates(const Coordinates &coords)
 	{
 		cudaMallocManaged((void**)&positions, DEGREES_OF_FREEDOM * sizeof(float));
 		for (int i = 0; i < DEGREES_OF_FREEDOM; i++)
@@ -75,7 +52,7 @@ struct CoordinatesNew
 		}
 	}
 
-	CoordinatesNew& operator=(const CoordinatesNew &coords)
+	Coordinates& operator=(const Coordinates &coords)
 	{
 		for (int i = 0; i < DEGREES_OF_FREEDOM; i++)
 		{
@@ -84,24 +61,17 @@ struct CoordinatesNew
 		return *this;
 	}
 
-	~CoordinatesNew()
+	~Coordinates()
 	{
 		cudaFree(positions);
 	}
 };
 
-struct ParticleNew
+struct Particle
 {
 	float positions[DEGREES_OF_FREEDOM];
 	float velocities[DEGREES_OF_FREEDOM];
 	float localBest[DEGREES_OF_FREEDOM];
-};
-
-struct Particle
-{
-	Coordinates positions;
-	Coordinates velocities;
-	Coordinates localBest;
 };
 
 struct Config
