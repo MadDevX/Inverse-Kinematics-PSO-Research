@@ -102,7 +102,8 @@ int main(int argc, char** argv)
 	obj_t* colliders;
 	Coordinates* resultCoords;
 
-	Config config;
+	Config config(0.5f, 0.5f, 1.25f, 15);
+
 	float *bests;
 	
 	cudaMalloc((void**)&randoms, N * sizeof(curandState_t));
