@@ -39,39 +39,7 @@ struct NodeCUDA
 
 struct Coordinates
 {
-	float *positions;
-
-	Coordinates()
-	{
-		cudaMallocManaged((void**)&positions, DEGREES_OF_FREEDOM * sizeof(float));
-		for (int i = 0; i < DEGREES_OF_FREEDOM; i++)
-		{
-			positions[i] = 0.0f;
-		}
-	}
-
-	Coordinates(const Coordinates &coords)
-	{
-		cudaMallocManaged((void**)&positions, DEGREES_OF_FREEDOM * sizeof(float));
-		for (int i = 0; i < DEGREES_OF_FREEDOM; i++)
-		{
-			positions[i] = coords.positions[i];
-		}
-	}
-
-	Coordinates& operator=(const Coordinates &coords)
-	{
-		for (int i = 0; i < DEGREES_OF_FREEDOM; i++)
-		{
-			positions[i] = coords.positions[i];
-		}
-		return *this;
-	}
-
-	~Coordinates()
-	{
-		cudaFree(positions);
-	}
+	float positions[DEGREES_OF_FREEDOM];
 };
 
 struct Particle

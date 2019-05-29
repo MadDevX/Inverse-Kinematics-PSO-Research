@@ -14,7 +14,7 @@
 #include "BoxCollider.h"
 int WINDOW_WIDTH = 800;
 int WINDOW_HEIGHT = 600;
-int N = 4096;
+int N = 16384;
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
@@ -98,14 +98,16 @@ int main(int argc, char** argv)
 	curandState_t *randoms;
 	float *particles;
 	obj_t* colliders;
+	Coordinates* resultCoords;
 
 	Config config;
 	float *bests;
 	
 	cudaMalloc((void**)&randoms, N * sizeof(curandState_t));
-	cudaMallocManaged((void**)&particles, N * 3 * DEGREES_OF_FREEDOM * sizeof(float));
-	cudaMallocManaged((void**)&bests, N * sizeof(float));
+	cudaMalloc((void**)&particles, N * 3 * DEGREES_OF_FREEDOM * sizeof(float));
+	cudaMalloc((void**)&bests, N * sizeof(float));
 	cudaMallocManaged((void**)&colliders, 1 * sizeof(obj_t));
+	cudaMallocManaged((void**)&resultCoords, sizeof(Coordinates));
 	initColliders(colliders, 1);
 	initGenerators(randoms, N);
 
@@ -116,13 +118,12 @@ int main(int argc, char** argv)
 		glfwPollEvents();
 
 		cudaError_t status;
-		Coordinates coords;
 
 		nodeArm->ToCUDA(chainCuda);
-		status = calculatePSO(particles, bests, randoms, N, chainCuda, config, &coords, colliders, 1);
+		status = calculatePSO(particles, bests, randoms, N, chainCuda, config, resultCoords, colliders, 1);
 		if (status != cudaSuccess) break;
 		int ind = 0;
-		nodeArm->FromCoords(coords,&ind);
+		nodeArm->FromCoords(resultCoords, &ind);
 		
 		#pragma region GLrendering
 
@@ -158,6 +159,7 @@ int main(int argc, char** argv)
 	cudaFree(particles);
 	cudaFree(randoms);
 	cudaFree(colliders);
+	cudaFree(resultCoords);
 	delete(nodeArm);
 	
 	for (int i = 0; i < elbows; i++)

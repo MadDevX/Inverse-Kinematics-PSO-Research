@@ -115,7 +115,7 @@ __device__ float calculateDistance(NodeCUDA *chain, int particleCount, float* pa
 
 		GJKData_t gjkData;
 		CCD_INIT(&gjkData);
-		gjkData.max_iterations = 100;
+		gjkData.max_iterations = GJK_ITERATIONS;
 		int intersects = 0;
 		for (int i = 0; i < colliderCount; i++)
 		{
@@ -148,7 +148,7 @@ __device__ float calculateDistance(NodeCUDA *chain, int particleCount, float* pa
 	return distance + angleWeight/(DEGREES_OF_FREEDOM / 3) * rotationDifference;
 }
 
-__global__ void simulateParticlesKernel(float *particles, float *localBests, curandState_t *randoms, int size, NodeCUDA *chain, Config config, Coordinates global, float globalMin, obj_t* colliders, int colliderCount)
+__global__ void simulateParticlesKernel(float *particles, float *localBests, curandState_t *randoms, int size, NodeCUDA *chain, Config config, Coordinates *global, float globalMin, obj_t* colliders, int colliderCount)
 {
 	extern __shared__ NodeCUDA sharedChain[];
 
@@ -169,7 +169,7 @@ __global__ void simulateParticlesKernel(float *particles, float *localBests, cur
 			int positionIdx = getParticleIndex(size, i, position, deg);
 			particles[velocityIdx] = config._inertia * curand_uniform(&randoms[i]) * particles[velocityIdx] +
 									 config._local   * curand_uniform(&randoms[i]) * (particles[getParticleIndex(size, i, localBest, deg)] - particles[positionIdx]) +
-									 config._global  * curand_uniform(&randoms[i]) * (global.positions[deg] - particles[positionIdx]);
+									 config._global  * curand_uniform(&randoms[i]) * (global->positions[deg] - particles[positionIdx]);
 			
 			particles[positionIdx] += particles[velocityIdx];
 			///particles[i].velocities[deg] = config._inertia * curand_uniform(&randoms[i]) * particles[i].velocities[deg] +
@@ -268,58 +268,59 @@ __global__ void initParticlesKernel(float *particles, float *localBests, curandS
 
 }
 
-cudaError_t calculatePSO(float *particles, float *bests, curandState_t *randoms, int size, NodeCUDA *chain, Config config, Coordinates *result, obj_t* colliders, int colliderCount)
+__global__ void updateGlobalBestCoordsKernel(float *particles, int particleCount, Coordinates* global, int globalIndex)
+{
+	int id = threadIdx.x + blockIdx.x * blockDim.x;
+	int stride = gridDim.x * blockDim.x;
+
+	for (int deg = id; deg < DEGREES_OF_FREEDOM; deg += stride)
+	{
+		global->positions[deg] = particles[getParticleIndex(particleCount, globalIndex, localBest, deg)];
+		///global.positions[deg] = particles[globalIndex].localBest[deg];
+	}
+}
+
+cudaError_t calculatePSO(float* particles, float* bests, curandState_t *randoms, int size, NodeCUDA *chain, Config config, Coordinates *result, obj_t* colliders, int colliderCount)
 {
 	cudaError_t status;
-	Coordinates global;
 	float globalMin;
+	float currentGlobalMin;
 	int numBlocks = (size + blockSize - 1) / blockSize;
+	int globalUpdateNumBlocks = (DEGREES_OF_FREEDOM + blockSize - 1) / blockSize;
 	int sharedMemorySize = sizeof(NodeCUDA)*((DEGREES_OF_FREEDOM / 3) + 1);
 
-	initParticlesKernel << <numBlocks, blockSize, sharedMemorySize>> > (particles, bests, randoms, chain, size, colliders, colliderCount);
+	initParticlesKernel<<<numBlocks, blockSize, sharedMemorySize>>>(particles, bests, randoms, chain, size, colliders, colliderCount);
 	checkCuda(status = cudaGetLastError());
 	if (status != cudaSuccess) return status;
-	checkCuda(status = cudaDeviceSynchronize());
+	//checkCuda(status = cudaDeviceSynchronize());//TODO
 
-	float *globalBest = thrust::min_element(thrust::host, bests, bests + size);
+	float *globalBest = thrust::min_element(thrust::device, bests, bests + size);
 
 	int globalIndex = globalBest - bests;
 
-	for (int deg = 0; deg < DEGREES_OF_FREEDOM; deg++)
-	{
-		global.positions[deg] = particles[getParticleIndex(size, globalIndex, localBest, deg)];
-		///global.positions[deg] = particles[globalIndex].localBest[deg];
-	}
-	
-	globalMin = bests[globalIndex];
+	updateGlobalBestCoordsKernel<<<globalUpdateNumBlocks, blockSize>>>(particles, size, result, globalIndex);
+	checkCuda(status = cudaDeviceSynchronize());//TODO
+
+	checkCuda(status = cudaMemcpy(&globalMin, bests + globalIndex, sizeof(float), cudaMemcpyDeviceToHost));
+	///globalMin = bests[globalIndex];
 
 	for (int i = 0; i < config._iterations; i++)
 	{
-		simulateParticlesKernel << <numBlocks, blockSize, sharedMemorySize >> > (particles, bests, randoms, size, chain, config, global, globalMin, colliders, colliderCount);
+		simulateParticlesKernel<<<numBlocks, blockSize, sharedMemorySize>>>(particles, bests, randoms, size, chain, config, result, globalMin, colliders, colliderCount);
 		checkCuda(status = cudaGetLastError());
 		if (status != cudaSuccess) return status;
-		checkCuda(status = cudaDeviceSynchronize());
-		globalBest = thrust::min_element(thrust::host, bests, bests + size);
+		//checkCuda(status = cudaDeviceSynchronize()); //TODO
+		globalBest = thrust::min_element(thrust::device, bests, bests + size);
 		globalIndex = globalBest - bests;
-		if (globalMin > bests[globalIndex])
+		checkCuda(status = cudaMemcpy(&currentGlobalMin, bests + globalIndex, sizeof(float), cudaMemcpyDeviceToHost));
+		if (globalMin > currentGlobalMin)
 		{
-			globalMin = bests[globalIndex];
-			for (int deg = 0; deg < DEGREES_OF_FREEDOM; deg++)
-			{
-				global.positions[deg] = particles[getParticleIndex(size, globalIndex, localBest, deg)];
-				///global.positions[deg] = particles[globalIndex].localBest[deg];
-			}
+			checkCuda(status = cudaMemcpy(&globalMin, bests + globalIndex, sizeof(float), cudaMemcpyDeviceToHost));
+			updateGlobalBestCoordsKernel<<<globalUpdateNumBlocks, blockSize>>>(particles, size, result, globalIndex);
+			checkCuda(status = cudaDeviceSynchronize()); //TODO
 		}
-		for (int i = 0; i < size; i++)
-		{
-			//printf("\tODLGLOSC %d - %f: \n",i, bests[i]);
-		}
-		
-
 	}
 
-	*result = global;
-	//printf("Global Min: %f; Index = %d\n", globalMin, globalIndex);
 	return status;
 }
 
@@ -715,7 +716,6 @@ __device__ static int doSimplex3(simplex_t *simplex, float3 *dir)
 			tripleCross(&AC, &AO, &AC, dir);
 		}
 		else {
-		ccd_do_simplex3_45:
 			dot = float3Dot(&AB, &AO);
 			if (IsZERO(dot) || dot > ZERO) {
 				SimplexSet(simplex, 0, B);
@@ -734,7 +734,18 @@ __device__ static int doSimplex3(simplex_t *simplex, float3 *dir)
 		float3Cross(&tmp, &AB, &ABC);
 		dot = float3Dot(&tmp, &AO);
 		if (IsZERO(dot) || dot > ZERO) {
-			goto ccd_do_simplex3_45;
+			dot = float3Dot(&AB, &AO);
+			if (IsZERO(dot) || dot > ZERO) {
+				SimplexSet(simplex, 0, B);
+				SimplexSet(simplex, 1, A);
+				SimplexSetSize(simplex, 2);
+				tripleCross(&AB, &AO, &AB, dir);
+			}
+			else {
+				SimplexSet(simplex, 0, A);
+				SimplexSetSize(simplex, 1);
+				float3Copy(dir, &AO);
+			}
 		}
 		else {
 			dot = float3Dot(&ABC, &AO);

@@ -114,13 +114,13 @@ public:
 		return nodeC;
 	}
 
-	void FromCoords(Coordinates coords, int *nodeIndex)
+	void FromCoords(Coordinates *coords, int *nodeIndex)
 	{
 		int coordIndex = ((*nodeIndex) - 1) * 3;
 		
 		if(*nodeIndex != 0)
 		{ 
-			this->rotation = glm::vec3(coords.positions[coordIndex], coords.positions[coordIndex + 1], coords.positions[coordIndex + 2]);
+			this->rotation = glm::vec3(coords->positions[coordIndex], coords->positions[coordIndex + 1], coords->positions[coordIndex + 2]);
 		}
 		
 		(*nodeIndex)++;
