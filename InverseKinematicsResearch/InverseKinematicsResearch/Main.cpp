@@ -14,7 +14,8 @@
 #include "BoxCollider.h"
 int WINDOW_WIDTH = 800;
 int WINDOW_HEIGHT = 600;
-int N = 16384;
+int N = 8192;
+int colliderCount = 4;
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
@@ -106,9 +107,9 @@ int main(int argc, char** argv)
 	cudaMalloc((void**)&randoms, N * sizeof(curandState_t));
 	cudaMalloc((void**)&particles, N * 3 * DEGREES_OF_FREEDOM * sizeof(float));
 	cudaMalloc((void**)&bests, N * sizeof(float));
-	cudaMallocManaged((void**)&colliders, 1 * sizeof(obj_t));
+	cudaMallocManaged((void**)&colliders, colliderCount * sizeof(obj_t));
 	cudaMallocManaged((void**)&resultCoords, sizeof(Coordinates));
-	initColliders(colliders, 1);
+	initColliders(colliders, colliderCount);
 	initGenerators(randoms, N);
 
 	while (!glfwWindowShouldClose(window))
@@ -120,7 +121,7 @@ int main(int argc, char** argv)
 		cudaError_t status;
 
 		nodeArm->ToCUDA(chainCuda);
-		status = calculatePSO(particles, bests, randoms, N, chainCuda, config, resultCoords, colliders, 1);
+		status = calculatePSO(particles, bests, randoms, N, chainCuda, config, resultCoords, colliders, colliderCount);
 		if (status != cudaSuccess) break;
 		int ind = 0;
 		nodeArm->FromCoords(resultCoords, &ind);
@@ -138,7 +139,7 @@ int main(int argc, char** argv)
 		nodeTarget1->DrawCurrent(shader, VAO);
 		nodeTarget2->DrawCurrent(shader, VAO);
 		nodeTarget3->DrawCurrent(shader, VAO);
-		drawColliders(colliders, 1, shader, VAO);
+		drawColliders(colliders, colliderCount, shader, VAO);
 
 		glfwSwapBuffers(window);
 		
@@ -364,6 +365,18 @@ void initColliders(obj_t* colliders, int colliderCount)
 	colliders[0].pos = make_float3(1.0f, 0.0f, 0.0f);
 	colliders[0].quat = make_float4(0.0f, 0.0f, 0.0f, 1.0f);
 	colliders[0].x = colliders[0].y = colliders[0].z = 1.0f;
+
+	colliders[1].pos = make_float3(0.0f, 0.0f, -1.0f);
+	colliders[1].quat = make_float4(-0.403f, -0.819f, 0.273f, 0.304f);
+	colliders[1].x = colliders[1].y = colliders[1].z = 1.0f;
+
+	colliders[2].pos = make_float3(-1.0f, 0.0f, 0.0f);
+	colliders[2].quat = make_float4(0.0f, 0.0f, 0.0f, 1.0f);
+	colliders[2].x = colliders[2].y = colliders[2].z = 1.0f;
+
+	colliders[3].pos = make_float3(0.0f, 0.0f, 1.0f);
+	colliders[3].quat = make_float4(0.0f, 0.0f, 0.0f, 1.0f);
+	colliders[3].x = colliders[3].y = colliders[3].z = 1.0f;
 }
 
 void drawBoxCollider(obj* collider, Shader shader, unsigned int VAO)
