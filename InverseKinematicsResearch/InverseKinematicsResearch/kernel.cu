@@ -14,9 +14,6 @@
 #include "GJKIntersection.cuh"
 #include "ik_constants.h"
 
-__constant__ float angleWeight = 3.0f;
-__constant__ float errorThreshold = 0.1f;
-
 __host__ __device__ int getParticleIndex(int particleCount, int particleIdx, ParticleProperty propType, int dimension)
 {
 	int idx = particleIdx + particleCount * dimension;
@@ -51,9 +48,7 @@ __device__ void updateChainMatrices(NodeCUDA *chain, int particleCount, float* p
 		float3 particleEulerRotation = make_float3(particles[positionIdx],
 												   particles[positionIdx + particleCount],
 												   particles[positionIdx + particleCount * 2]);
-									///make_float3(particle.positions[dimensionIndex],
-									///			   particle.positions[dimensionIndex + 1],
-									///			   particle.positions[dimensionIndex + 2]);
+									
 
 		Matrix tempMat = createMatrix(1.0f);
 		tempMat = rotateEuler(tempMat, particleEulerRotation);
@@ -67,25 +62,25 @@ __device__ void updateChainMatrices(NodeCUDA *chain, int particleCount, float* p
 	}
 }
 
-__device__ float calculateDistance(NodeCUDA *chain, int particleCount, float* particles, int particleIdx, obj_t* colliders, int colliderCount)
+__device__ float calculateDistance(NodeCUDA *chain, float* positions, int particleCount, float* particles, int particleIdx, obj_t* colliders, int colliderCount, FitnessConfig fitConfig)
 {
 	float rotationDifference = 0.0f;
+	float positionDifferenceMag = 0.0f;
 	float distance = 0.0f;
 	int nodeCount = NODE_COUNT;
 	Matrix matrices[NODE_COUNT];
 	updateChainMatrices(chain, particleCount, particles, particleIdx, matrices);
+
 	for(int ind = 1; ind < nodeCount; ind++)
 	{
-		float3 chainRotation = chain[ind].rotation;
 		int dimensionIdx = (ind - 1) * 3;
 		int positionIdx = getParticleIndex(particleCount, particleIdx, position, dimensionIdx);
+
+		float3 chainRotation = chain[ind].rotation;
 		float3 particleRotation = make_float3(particles[positionIdx],
 											  particles[positionIdx + particleCount],
 											  particles[positionIdx + particleCount * 2]);
-								///make_float3(
-								///particle.positions[dimensionIdx],
-								///particle.positions[dimensionIdx + 1],
-								///particle.positions[dimensionIdx + 2]);
+
 
 		rotationDifference = rotationDifference + magnitudeSqr(chainRotation - particleRotation);
 
@@ -96,13 +91,23 @@ __device__ float calculateDistance(NodeCUDA *chain, int particleCount, float* pa
 			model.cells[i] = matrices[ind].cells[i];
 		}
 		float4 position = multiplyMatByVec(model, originVector);
+
+		int armInd = (ind - 1) * 4;
+		float4 armPosition = make_float4(positions[armInd],
+			positions[armInd + 1],
+			positions[armInd + 2],
+			positions[armInd + 3]);
+
+		float4 positionDifference = position - armPosition;
+		positionDifferenceMag += magnitudeSqr(positionDifference);
+
+
 		float4 rotation = matrixToQuaternion(model);
 
 		obj_t nodeCollider;
 		nodeCollider.pos = make_float3(position.x, position.y, position.z);
 		nodeCollider.quat = rotation;
 		nodeCollider.x = nodeCollider.y = nodeCollider.z = GIZMO_SIZE;
-
 
 		obj_t linkCollider;
 		float4 startPos = multiplyMatByVec(model, originVector); //this node
@@ -137,18 +142,16 @@ __device__ float calculateDistance(NodeCUDA *chain, int particleCount, float* pa
 			float distTmp = magnitudeSqr(make_float3(
 													position.x - chain[ind].targetPosition.x,
 													position.y - chain[ind].targetPosition.y,
-													position.z - chain[ind].targetPosition.z));
-		
+													position.z - chain[ind].targetPosition.z));		
 			distance = distance + distTmp;
 		}
 		
-		
 	}
 
-	return distance + angleWeight/(DEGREES_OF_FREEDOM / 3) * rotationDifference;
+	return distance + fitConfig.distanceWeight/(DEGREES_OF_FREEDOM / 3) * positionDifferenceMag + fitConfig.angleWeight/(DEGREES_OF_FREEDOM / 3) * rotationDifference;
 }
 
-__global__ void simulateParticlesKernel(float *particles, float *localBests, curandState_t *randoms, int size, NodeCUDA *chain, Config config, Coordinates *global, float globalMin, obj_t* colliders, int colliderCount)
+__global__ void simulateParticlesKernel(float *particles, float* positions, float *localBests, curandState_t *randoms, int size, NodeCUDA *chain, PSOConfig psoConfig,FitnessConfig fitConfig, Coordinates *global, float globalMin, obj_t* colliders, int colliderCount)
 {
 	extern __shared__ NodeCUDA sharedChain[];
 
@@ -167,18 +170,11 @@ __global__ void simulateParticlesKernel(float *particles, float *localBests, cur
 		{
 			int velocityIdx = getParticleIndex(size, i, velocity, deg);
 			int positionIdx = getParticleIndex(size, i, position, deg);
-			particles[velocityIdx] = config._inertia * curand_uniform(&randoms[i]) * particles[velocityIdx] +
-									 config._local   * curand_uniform(&randoms[i]) * (particles[getParticleIndex(size, i, localBest, deg)] - particles[positionIdx]) +
-									 config._global  * curand_uniform(&randoms[i]) * (global->positions[deg] - particles[positionIdx]);
+			particles[velocityIdx] = psoConfig._inertia * curand_uniform(&randoms[i]) * particles[velocityIdx] +
+										psoConfig._local   * curand_uniform(&randoms[i]) * (particles[getParticleIndex(size, i, localBest, deg)] - particles[positionIdx]) +
+										psoConfig._global  * curand_uniform(&randoms[i]) * (global->positions[deg] - particles[positionIdx]);
 			
 			particles[positionIdx] += particles[velocityIdx];
-			///particles[i].velocities[deg] = config._inertia * curand_uniform(&randoms[i]) * particles[i].velocities[deg] +
-			///							   config._local   * curand_uniform(&randoms[i]) * (particles[i].localBest[deg] - particles[i].positions[deg]) +
-			///							   config._global  * curand_uniform(&randoms[i]) * (global.positions[deg]- particles[i].positions[deg]);
-			///
-			///particles[i].positions[deg] += particles[i].velocities[deg];
-
-			
 		}
 
 		//for (int ind = 1; ind <= DEGREES_OF_FREEDOM/3; ind++)
@@ -188,7 +184,8 @@ __global__ void simulateParticlesKernel(float *particles, float *localBests, cur
 		//	particles[i].positions[deg + 1] = clamp(particles[i].positions[deg+1], chain[ind].minRotation.y, chain[ind].maxRotation.y);
 		//	particles[i].positions[deg + 2] = clamp(particles[i].positions[deg+2], chain[ind].minRotation.z, chain[ind].maxRotation.z);
 		//}	
-		float currentDistance = calculateDistance(sharedChain, size, particles, i, colliders, colliderCount);
+
+		float currentDistance = calculateDistance(sharedChain,positions, size, particles, i, colliders, colliderCount,fitConfig);
 		
 		if (currentDistance < localBests[i])
 		{
@@ -197,14 +194,14 @@ __global__ void simulateParticlesKernel(float *particles, float *localBests, cur
 			for (int deg = 0; deg < DEGREES_OF_FREEDOM; deg++)
 			{
 				particles[getParticleIndex(size, i, localBest, deg)] = particles[getParticleIndex(size, i, position, deg)];
-				///particles[i].localBest[deg] = particles[i].positions[deg];
+				
 			}
 			
 		}
 	}
 }
 
-__global__ void initParticlesKernel(float *particles, float *localBests, curandState_t *randoms, NodeCUDA * chain, int particleCount, obj_t* colliders, int colliderCount)
+__global__ void initParticlesKernel(float *particles, float *localBests, curandState_t *randoms, NodeCUDA * chain, float* positions, int particleCount, obj_t* colliders, int colliderCount, FitnessConfig fitConfig)
 {
 	extern __shared__ NodeCUDA sharedChain[];
 
@@ -245,10 +242,6 @@ __global__ void initParticlesKernel(float *particles, float *localBests, curandS
 			particles[positionIdx + particleCount]		= eulerRot.y;
 			particles[positionIdx + particleCount * 2]	= eulerRot.z;
 
-			///particles[i].positions[deg] = eulerRot.x;
-			///particles[i].positions[deg + 1] = eulerRot.y;
-			///particles[i].positions[deg + 2] = eulerRot.z;
-
 		}
 
 		//Init bests with current data
@@ -257,12 +250,11 @@ __global__ void initParticlesKernel(float *particles, float *localBests, curandS
 			int positionIdx = getParticleIndex(particleCount, i, position, deg);
 			particles[positionIdx + particleCount * DEGREES_OF_FREEDOM] = curand_uniform(&randoms[i]) * 2.0f - 1.0f;
 			particles[positionIdx + particleCount * DEGREES_OF_FREEDOM * 2] = particles[positionIdx];
-			///particles[i].velocities[deg] = curand_uniform(&randoms[i]) * 2.0f - 1.0f;
-			///particles[i].localBest[deg] = particles[i].positions[deg];
+
 		}
 
 		//Calculate bests
-		localBests[i] = calculateDistance(sharedChain, particleCount, particles, i, colliders, colliderCount);
+		localBests[i] = calculateDistance(sharedChain, positions, particleCount, particles, i, colliders, colliderCount,fitConfig);
 		
 	}
 
@@ -276,11 +268,12 @@ __global__ void updateGlobalBestCoordsKernel(float *particles, int particleCount
 	for (int deg = id; deg < DEGREES_OF_FREEDOM; deg += stride)
 	{
 		global->positions[deg] = particles[getParticleIndex(particleCount, globalIndex, localBest, deg)];
-		///global.positions[deg] = particles[globalIndex].localBest[deg];
 	}
 }
 
-cudaError_t calculatePSO(float* particles, float* bests, curandState_t *randoms, int size, NodeCUDA *chain, Config config, Coordinates *result, obj_t* colliders, int colliderCount)
+cudaError_t calculatePSO(float* particles,float* positions, float* bests,
+						curandState_t *randoms, int size, NodeCUDA *chain, PSOConfig psoConfig, FitnessConfig fitConfig, 
+						Coordinates *result, obj_t* colliders, int colliderCount)
 {
 	cudaError_t status;
 	float globalMin;
@@ -289,27 +282,26 @@ cudaError_t calculatePSO(float* particles, float* bests, curandState_t *randoms,
 	int globalUpdateNumBlocks = (DEGREES_OF_FREEDOM + blockSize - 1) / blockSize;
 	int sharedMemorySize = sizeof(NodeCUDA)*((DEGREES_OF_FREEDOM / 3) + 1);
 
-	initParticlesKernel<<<numBlocks, blockSize, sharedMemorySize>>>(particles, bests, randoms, chain, size, colliders, colliderCount);
+	initParticlesKernel<<<numBlocks, blockSize, sharedMemorySize>>>(particles, bests, randoms, chain,positions, size, colliders, colliderCount,fitConfig);
 	checkCuda(status = cudaGetLastError());
-	if (status != cudaSuccess) return status;
-	//checkCuda(status = cudaDeviceSynchronize());//TODO
+	if (status != cudaSuccess) return status;	
 
 	float *globalBest = thrust::min_element(thrust::device, bests, bests + size);
 
 	int globalIndex = globalBest - bests;
 
 	updateGlobalBestCoordsKernel<<<globalUpdateNumBlocks, blockSize>>>(particles, size, result, globalIndex);
-	checkCuda(status = cudaDeviceSynchronize());//TODO
+	checkCuda(status = cudaDeviceSynchronize());
 
 	checkCuda(status = cudaMemcpy(&globalMin, bests + globalIndex, sizeof(float), cudaMemcpyDeviceToHost));
-	///globalMin = bests[globalIndex];
+	
 
-	for (int i = 0; i < config._iterations; i++)
+	for (int i = 0; i < psoConfig._iterations; i++)
 	{
-		simulateParticlesKernel<<<numBlocks, blockSize, sharedMemorySize>>>(particles, bests, randoms, size, chain, config, result, globalMin, colliders, colliderCount);
+		simulateParticlesKernel<<<numBlocks, blockSize, sharedMemorySize>>>(particles, positions, bests, randoms, size, chain,  psoConfig,fitConfig, result, globalMin, colliders, colliderCount);
 		checkCuda(status = cudaGetLastError());
 		if (status != cudaSuccess) return status;
-		//checkCuda(status = cudaDeviceSynchronize()); //TODO
+		
 		globalBest = thrust::min_element(thrust::device, bests, bests + size);
 		globalIndex = globalBest - bests;
 		checkCuda(status = cudaMemcpy(&currentGlobalMin, bests + globalIndex, sizeof(float), cudaMemcpyDeviceToHost));
@@ -317,7 +309,7 @@ cudaError_t calculatePSO(float* particles, float* bests, curandState_t *randoms,
 		{
 			checkCuda(status = cudaMemcpy(&globalMin, bests + globalIndex, sizeof(float), cudaMemcpyDeviceToHost));
 			updateGlobalBestCoordsKernel<<<globalUpdateNumBlocks, blockSize>>>(particles, size, result, globalIndex);
-			checkCuda(status = cudaDeviceSynchronize()); //TODO
+			checkCuda(status = cudaDeviceSynchronize());
 		}
 	}
 

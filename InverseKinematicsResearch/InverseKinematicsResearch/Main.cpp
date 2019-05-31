@@ -26,7 +26,7 @@ bool rotate = false;
 glm::mat4 view = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -5.0f));
 
 extern cudaError_t initGenerators(curandState_t *randoms, int size);
-extern cudaError_t calculatePSO(float *particles, float *bests, curandState_t *randoms, int size, NodeCUDA *chain, Config config, Coordinates *result, obj_t* colliders, int colliderCount);
+extern cudaError_t calculatePSO(float *particles,float* positions, float *bests, curandState_t *randoms, int size, NodeCUDA *chain, PSOConfig PSOconfig,FitnessConfig fitnessConfig, Coordinates *result, obj_t* colliders, int colliderCount);
 GLFWwindow* initOpenGLContext();
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
@@ -60,7 +60,8 @@ int main(int argc, char** argv)
 	unsigned int coordVAO = initCoordVAO(&coordVBO);
 	#pragma endregion
 
-    nodeArm = new OriginNode(glm::vec3(0.0f), glm::vec3(0.0f), glm::vec3(0.0f), glm::vec3(2*PI));
+	#pragma region Arm setup
+	nodeArm = new OriginNode(glm::vec3(0.0f), glm::vec3(0.0f), glm::vec3(0.0f), glm::vec3(2 * PI));
 	int elbows = 4;
 	Node** nodeElbows = new Node*[elbows];
 	for (int i = 0; i < elbows; i++)
@@ -73,10 +74,10 @@ int main(int argc, char** argv)
 	TargetNode* nodeTarget1 = new TargetNode(glm::vec3(1.0f, 1.0f, -1.5f));
 	TargetNode* nodeTarget2 = new TargetNode(glm::vec3(-1.0f, 1.0f, -1.5f));
 	TargetNode* nodeTarget3 = new TargetNode(glm::vec3(0.0f, 0.0f, -2.0f));
-	
+
 	movingTarget = nodeTarget1;
 	targets = (TargetNode**)malloc(AMOUNT_OF_TARGETS * sizeof(TargetNode*));
-	
+
 	targets[0] = nodeTarget1;
 	targets[1] = nodeTarget2;
 	targets[2] = nodeTarget3;
@@ -92,20 +93,25 @@ int main(int argc, char** argv)
 	{
 		nodeElbows[i - 1]->AttachChild(nodeElbows[i]);
 	}
-	nodeElbows[elbows-1]->AttachChild(nodeWrist);
-	nodeElbows[elbows-1]->AttachChild(nodeWrist2);
-	nodeElbows[elbows-1]->AttachChild(nodeWrist3);
-	
+	nodeElbows[elbows - 1]->AttachChild(nodeWrist);
+	nodeElbows[elbows - 1]->AttachChild(nodeWrist2);
+	nodeElbows[elbows - 1]->AttachChild(nodeWrist3);
+
+#pragma endregion
+
+   
 	NodeCUDA* chainCuda = nodeArm->AllocateCUDA();
+	float *armPositions = nodeArm->AllocatePositions();
+
 	curandState_t *randoms;
 	float *particles;
 	obj_t* colliders;
 	Coordinates* resultCoords;
 
-	Config config(0.5f, 0.5f, 1.25f, 15);
-
+	PSOConfig psoConfig(0.5f, 0.5f, 1.25f, 15);
+	FitnessConfig fitConfig(3.0f,0.5f,0.1f);
 	float *bests;
-	
+
 	cudaMalloc((void**)&randoms, N * sizeof(curandState_t));
 	cudaMalloc((void**)&particles, N * 3 * DEGREES_OF_FREEDOM * sizeof(float));
 	cudaMalloc((void**)&bests, N * sizeof(float));
@@ -125,11 +131,12 @@ int main(int argc, char** argv)
 		cudaError_t status;
 
 		nodeArm->ToCUDA(chainCuda);
-		status = calculatePSO(particles, bests, randoms, N, chainCuda, config, resultCoords, colliders, colliderCount);
+		nodeArm->FillPositions(armPositions, chainCuda); 
+
+		status = calculatePSO(particles,armPositions, bests, randoms, N, chainCuda, psoConfig, fitConfig, resultCoords, colliders, colliderCount);
 		if (status != cudaSuccess) break;
 		int ind = 0;
 		nodeArm->FromCoords(resultCoords, &ind);
-		
 		#pragma region GLrendering
 
 		glClearColor(0.3f, 0.3f, 0.3f, 1.0f);
@@ -159,6 +166,7 @@ int main(int argc, char** argv)
 
 	glfwTerminate();
 
+	cudaFree(armPositions);
 	cudaFree(bests);
 	cudaFree(chainCuda);
 	cudaFree(particles);
@@ -180,6 +188,9 @@ int main(int argc, char** argv)
 	
 	return 0;
 }
+#pragma region GLfun
+
+
 
 unsigned int initVAO(unsigned int *VBO)
 {
@@ -417,3 +428,4 @@ void drawColliders(obj_t* colliders, int colliderCount, Shader shader, unsigned 
 		drawBoxCollider(&colliders[i], shader, VAO);
 	}
 }
+#pragma endregion

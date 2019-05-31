@@ -49,7 +49,23 @@ struct Particle
 	float localBest[DEGREES_OF_FREEDOM];
 };
 
-struct Config
+struct FitnessConfig
+{
+	float angleWeight;
+	float distanceWeight;
+	float errorThreshold;
+
+	FitnessConfig(float angleWeight = 3.0f, float distanceWeight = 0.0f, float errorThreshold = 0.1f)
+	{
+		this->angleWeight = angleWeight;
+		this->distanceWeight = distanceWeight;
+		this->errorThreshold = errorThreshold;
+	}
+
+};
+
+
+struct PSOConfig
 {
 	float _inertia;
 	float _local;
@@ -57,7 +73,7 @@ struct Config
 	int _iterations;
 
 
-	Config(float inertia = 0.2f, float local = 0.5f, float global = 0.7f, int iterations = 10)
+	PSOConfig(float inertia = 0.2f, float local = 0.5f, float global = 0.7f, int iterations = 10)
 	{
 		_inertia = inertia;
 		_local = local;

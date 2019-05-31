@@ -106,6 +106,55 @@ public:
 		CopyToArray(allocatedPtr, &index);
 	}
 
+	void CopyPositions(float* positions, int* index)
+	{			
+		int nodeIndex = (*index) * 4;
+
+		glm::mat4 model = this->GetModelMatrix();
+		glm::vec4 originVector = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
+		
+		glm::vec4 position = model * originVector;	
+		
+
+
+		//cudaMemcpy((void*)(positions + nodeIndex),     (void*)&(position.x), sizeof(float), cudaMemcpyHostToDevice);
+		//cudaMemcpy((void*)(positions + nodeIndex + 1), (void*)&(position.y), sizeof(float), cudaMemcpyHostToDevice);
+		//cudaMemcpy((void*)(positions + nodeIndex + 2), (void*)&(position.z), sizeof(float), cudaMemcpyHostToDevice);
+		//cudaMemcpy((void*)(positions + nodeIndex + 3), (void*)&(position.w), sizeof(float), cudaMemcpyHostToDevice);
+
+		
+		positions[nodeIndex] = position.x;
+		positions[nodeIndex + 1] = position.y;
+		positions[nodeIndex + 2] = position.z;
+		positions[nodeIndex + 3] = position.w;
+
+		/*positions[nodeIndex    ] = nodeIndex;
+		positions[nodeIndex + 1] = nodeIndex + 1;
+		positions[nodeIndex + 2] = nodeIndex + 2;
+		positions[nodeIndex + 3] = nodeIndex + 3;*/
+	
+		(*index)++;
+
+		for (int i = 0; i < link.children.size(); i++)
+		{
+			link.children[i]->CopyPositions(positions, index);
+		}
+	}
+
+	void FillPositions(float* positions, NodeCUDA * chain)
+	{
+		int index = 1;
+		CopyPositions(positions,&index);
+	}
+
+	float* AllocatePositions()
+	{
+		float* positions; 
+		int nodeCount = this->CountChildren();
+		cudaMallocManaged(&positions, nodeCount * 4 * sizeof(float));
+		return positions;
+	}
+
 	NodeCUDA* AllocateCUDA()
 	{
 		NodeCUDA* nodeC;
