@@ -177,13 +177,23 @@ __global__ void simulateParticlesKernel(float *particles, float* positions, floa
 			particles[positionIdx] += particles[velocityIdx];
 		}
 
-		//for (int ind = 1; ind <= DEGREES_OF_FREEDOM/3; ind++)
-		//{
-		//	int deg = (ind - 1) * 3;
-		//	particles[i].positions[deg]   =   clamp(particles[i].positions[deg], chain[ind].minRotation.x, chain[ind].maxRotation.x);
-		//	particles[i].positions[deg + 1] = clamp(particles[i].positions[deg+1], chain[ind].minRotation.y, chain[ind].maxRotation.y);
-		//	particles[i].positions[deg + 2] = clamp(particles[i].positions[deg+2], chain[ind].minRotation.z, chain[ind].maxRotation.z);
-		//}	
+		
+		for (int ind = 1; ind <= DEGREES_OF_FREEDOM/3; ind++)
+		{
+			int deg = (ind - 1) * 3;
+			int xPositionIdx = getParticleIndex(size, i, position, deg);
+			int yPositionIdx = getParticleIndex(size, i, position, deg+1);
+			int zPositionIdx = getParticleIndex(size, i, position, deg+2);
+
+			float posX = particles[xPositionIdx];
+			float posY = particles[yPositionIdx];
+			float posZ = particles[zPositionIdx];
+
+			particles[xPositionIdx] = clamp(particles[xPositionIdx], chain[ind].minRotation.x, chain[ind].maxRotation.x);
+			particles[yPositionIdx] = clamp(particles[yPositionIdx], chain[ind].minRotation.y, chain[ind].maxRotation.y);
+			particles[zPositionIdx] = clamp(particles[zPositionIdx], chain[ind].minRotation.z, chain[ind].maxRotation.z);
+
+		}
 
 		float currentDistance = calculateDistance(sharedChain,positions, size, particles, i, colliders, colliderCount,fitConfig);
 		
