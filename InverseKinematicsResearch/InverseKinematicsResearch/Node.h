@@ -47,7 +47,8 @@ class Node
 #pragma region public 
 
 public:
-	
+
+	float effectorWeight;
 	glm::vec3 rotation;
 	glm::vec3 minRotation;
 	glm::vec3 maxRotation;
@@ -197,8 +198,10 @@ protected:
 	{
 
 		NodeCUDA tmpNode = NodeCUDA();
+		
 		tmpNode.length = this->link.length;
 
+		tmpNode.effectorWeight = this->effectorWeight;
 		tmpNode.rotation.x=	this->rotation.x;
 		tmpNode.rotation.y=	this->rotation.y;
 		tmpNode.rotation.z=	this->rotation.z;	
@@ -368,18 +371,20 @@ public:
 
 };
 
-
 class EffectorNode : public Node
 {
 public:
+
 	TargetNode* target;
 
-	EffectorNode(glm::vec3 rotation, glm::vec3 minRotation, glm::vec3 maxRotation, float length, TargetNode* target = nullptr, Node* parent = nullptr) : Node(rotation,minRotation,maxRotation,length, parent)
+	EffectorNode(float effectorWeight, glm::vec3 rotation, glm::vec3 minRotation, glm::vec3 maxRotation, float length, TargetNode* target = nullptr, Node* parent = nullptr) : Node(rotation, minRotation, maxRotation, length, parent)
 	{
 		this->target = target;
+		this->effectorWeight = effectorWeight;
 	}
 
 protected:
+
 
 	void FillNodeCUDAtype(NodeCUDA* node) override
 	{

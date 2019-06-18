@@ -143,7 +143,7 @@ __device__ float calculateDistance(NodeCUDA *chain, float* positions, int partic
 													position.x - chain[ind].targetPosition.x,
 													position.y - chain[ind].targetPosition.y,
 													position.z - chain[ind].targetPosition.z));		
-			distance = distance + distTmp;
+			distance = distance + distTmp*chain[ind].effectorWeight;
 		}
 		
 	}

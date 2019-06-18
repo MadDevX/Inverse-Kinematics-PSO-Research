@@ -26,6 +26,8 @@ struct NodeCUDA
 {
 	NodeType nodeType;
 	int parentIndex;
+
+	float effectorWeight;
 	float3 position;
 	float3 rotation; //rotation relative to parent
 
