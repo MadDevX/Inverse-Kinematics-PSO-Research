@@ -65,12 +65,12 @@ int main(int argc, char** argv)
 	
 	float length = 1.0f;
 	
-	nodeArm = new OriginNode(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f), glm::vec3(2 * PI));
+	nodeArm = new OriginNode(glm::vec3(0.0f, length/ 1.41f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f), glm::vec3(2 * PI));
 	Node* leftKneeNode = new Node(glm::vec3(0.0f, 0.0f, PI/2.0f), glm::vec3(0.0f), glm::vec3(2 * PI), length);
-	Node* crotchNode = new Node(glm::vec3(0.0f, PI / 4.0f, 0.0f), glm::vec3(0.0f), glm::vec3(2 * PI), length);
-	Node* rightKneeNode = new Node(glm::vec3(0.0f, PI / 2.0f, 0.0f), glm::vec3(0.0f), glm::vec3(2 * PI), length);
+	Node* crotchNode = new Node(glm::vec3(0.0f, PI / 2.0f, 0.0f), glm::vec3(0.0f), glm::vec3(2 * PI), length);
+	Node* rightKneeNode = new Node(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f), glm::vec3(2 * PI), length);
 	
-	Node* neckNode = new Node(glm::vec3(0.0f,0.0f,0.0f),glm::vec3(-PI/2.0f, -PI / 4.0f,0.0f), glm::vec3(PI/2.0f, PI / 4.0f, PI / 4.0f), length);
+	Node* neckNode = new Node(glm::vec3(0.0f,-PI/2.0f,0.0f),glm::vec3(-PI/8.0f, -PI / 8.0f,-PI/2.0f), glm::vec3(PI / 8.0f, PI / 8.0f, PI / 2.0f), length);
 	Node* rightElbowNode = new Node(glm::vec3(0.0f, PI/2.0f, 0.0f), glm::vec3(-PI, 0.0f, -PI / 2.0f), glm::vec3(0.0f, PI, PI / 2.0f), length);
 	Node* headNode = new Node(glm::vec3(0.0f),					glm::vec3(0.0f), glm::vec3(2 * PI), length);
 	Node* leftElbowNode = new Node(glm::vec3(0.0f, -PI/2.0f, 0.0f), glm::vec3(0.0f, -PI, -PI / 2.0f), glm::vec3(PI / 2.0f, 0.0f, PI / 2.0f), length);
@@ -85,7 +85,7 @@ int main(int argc, char** argv)
 	neckNode->AttachChild(leftElbowNode);
 
 
-	EffectorNode* foot = new EffectorNode(50.0f,glm::vec3(0.0f,PI/4.0f,0.0f), glm::vec3(0.0f), glm::vec3(2 * PI), length);
+	EffectorNode* foot = new EffectorNode(50.0f,glm::vec3(0.0f,PI/2.0f,0.0f), glm::vec3(0.0f), glm::vec3(2 * PI), length);
 	EffectorNode* lHand = new EffectorNode(1.0f, glm::vec3(0.0f), glm::vec3(0.0f), glm::vec3(0.0f,0.0f,PI), length);
 	EffectorNode* rHand = new EffectorNode(1.0f, glm::vec3(0.0f), glm::vec3(0.0f), glm::vec3(0.0f, 0.0f, PI ), length);
 	rightKneeNode->AttachChild(foot);
