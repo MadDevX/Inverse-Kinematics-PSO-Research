@@ -14,8 +14,8 @@
 #include "BoxCollider.h"
 int WINDOW_WIDTH = 800;
 int WINDOW_HEIGHT = 600;
-int N = 8192;
-int colliderCount = 4;
+int N = 32768;
+int colliderCount = 0;
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
@@ -109,20 +109,21 @@ int main(int argc, char** argv)
 	Coordinates* resultCoords;
 
 	PSOConfig psoConfig(0.5f, 0.5f, 1.25f, 15);
-	FitnessConfig fitConfig(3.0f,0.5f,0.1f);
+	FitnessConfig fitConfig(3.0f,0.0f,0.1f);
 	float *bests;
 
-	cudaMalloc((void**)&randoms, N * sizeof(curandState_t));
+	cudaMalloc((void**)&randoms, N * DEGREES_OF_FREEDOM * sizeof(curandState_t));
 	cudaMalloc((void**)&particles, N * 3 * DEGREES_OF_FREEDOM * sizeof(float));
 	cudaMalloc((void**)&bests, N * sizeof(float));
 	cudaMallocManaged((void**)&colliders, colliderCount * sizeof(obj_t));
 	cudaMallocManaged((void**)&resultCoords, sizeof(Coordinates));
 	initColliders(colliders, colliderCount);
-	initGenerators(randoms, N);
+	initGenerators(randoms, N * DEGREES_OF_FREEDOM);
 
 	while (!glfwWindowShouldClose(window))
 	{
 		calculateDeltaTime();
+		printf("%f\n", deltaTime);
 		processInput(window);
 		glfwPollEvents();
 
@@ -377,21 +378,30 @@ void calculateDeltaTime()
 
 void initColliders(obj_t* colliders, int colliderCount)
 {
-	colliders[0].pos = make_float3(1.0f, 0.0f, 0.0f);
-	colliders[0].quat = make_float4(0.0f, 0.0f, 0.0f, 1.0f);
-	colliders[0].x = colliders[0].y = colliders[0].z = 1.0f;
-
-	colliders[1].pos = make_float3(0.0f, 0.0f, -1.0f);
-	colliders[1].quat = make_float4(-0.403f, -0.819f, 0.273f, 0.304f);
-	colliders[1].x = colliders[1].y = colliders[1].z = 1.0f;
-
-	colliders[2].pos = make_float3(-1.0f, 0.0f, 0.0f);
-	colliders[2].quat = make_float4(0.0f, 0.0f, 0.0f, 1.0f);
-	colliders[2].x = colliders[2].y = colliders[2].z = 1.0f;
-
-	colliders[3].pos = make_float3(0.0f, 0.0f, 1.0f);
-	colliders[3].quat = make_float4(0.0f, 0.0f, 0.0f, 1.0f);
-	colliders[3].x = colliders[3].y = colliders[3].z = 1.0f;
+	if (colliderCount > 0)
+	{
+		colliders[0].pos = make_float3(1.0f, 0.0f, 0.0f);
+		colliders[0].quat = make_float4(0.0f, 0.0f, 0.0f, 1.0f);
+		colliders[0].x = colliders[0].y = colliders[0].z = 1.0f;
+	}
+	if (colliderCount > 1)
+	{
+		colliders[1].pos = make_float3(0.0f, 0.0f, -1.0f);
+		colliders[1].quat = make_float4(-0.403f, -0.819f, 0.273f, 0.304f);
+		colliders[1].x = colliders[1].y = colliders[1].z = 1.0f;
+	}
+	if (colliderCount > 2)
+	{
+		colliders[2].pos = make_float3(-1.0f, 0.0f, 0.0f);
+		colliders[2].quat = make_float4(0.0f, 0.0f, 0.0f, 1.0f);
+		colliders[2].x = colliders[2].y = colliders[2].z = 1.0f;
+	}
+	if (colliderCount > 3)
+	{
+		colliders[3].pos = make_float3(0.0f, 0.0f, 1.0f);
+		colliders[3].quat = make_float4(0.0f, 0.0f, 0.0f, 1.0f);
+		colliders[3].x = colliders[3].y = colliders[3].z = 1.0f;
+	}
 }
 
 void rotateCollider(obj_t* collider, float time)
