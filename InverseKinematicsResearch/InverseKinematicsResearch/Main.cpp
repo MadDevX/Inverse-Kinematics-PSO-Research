@@ -15,7 +15,7 @@
 int WINDOW_WIDTH = 800;
 int WINDOW_HEIGHT = 600;
 int N = 8192;
-int colliderCount = 4;
+int colliderCount = 1;
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
@@ -66,28 +66,28 @@ int main(int argc, char** argv)
 	float length = 1.0f;
 	
 	nodeArm = new OriginNode(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f), glm::vec3(2 * PI));
-	Node* leftKneeNode = new Node(glm::vec3(0.0f, 0.0f, PI / 2.0f), glm::vec3(0.0f), glm::vec3(2 * PI), length);
+	Node* leftKneeNode = new Node(glm::vec3(0.0f, 0.0f, PI/2.0f), glm::vec3(0.0f), glm::vec3(2 * PI), length);
 	Node* crotchNode = new Node(glm::vec3(0.0f, PI / 4.0f, 0.0f), glm::vec3(0.0f), glm::vec3(2 * PI), length);
 	Node* rightKneeNode = new Node(glm::vec3(0.0f, PI / 2.0f, 0.0f), glm::vec3(0.0f), glm::vec3(2 * PI), length);
-	Node* spineNode = new Node(glm::vec3(0.0f, -PI / 4.0f, 0.0f), glm::vec3(0.0f), glm::vec3(2 * PI), length);
-	Node* neckNode = new Node(glm::vec3(0.0f),					 glm::vec3(0.0f), glm::vec3(2 * PI), length);
-	Node* rightElbowNode = new Node(glm::vec3(0.0f, PI/2.0f, 0.0f), glm::vec3(0.0f), glm::vec3(2 * PI), length);
+	
+	Node* neckNode = new Node(glm::vec3(0.0f,0.0f,0.0f),glm::vec3(-PI/2.0f, -PI / 4.0f,0.0f), glm::vec3(PI/2.0f, PI / 4.0f, PI / 4.0f), length);
+	Node* rightElbowNode = new Node(glm::vec3(0.0f, PI/2.0f, 0.0f), glm::vec3(-PI, 0.0f, -PI / 2.0f), glm::vec3(0.0f, PI, PI / 2.0f), length);
 	Node* headNode = new Node(glm::vec3(0.0f),					glm::vec3(0.0f), glm::vec3(2 * PI), length);
-	Node* leftElbowNode = new Node(glm::vec3(0.0f, -PI/2.0f, 0.0f), glm::vec3(0.0f), glm::vec3(2 * PI), length);
+	Node* leftElbowNode = new Node(glm::vec3(0.0f, -PI/2.0f, 0.0f), glm::vec3(0.0f, -PI, -PI / 2.0f), glm::vec3(PI / 2.0f, 0.0f, PI / 2.0f), length);
 
 	nodeArm->AttachChild(leftKneeNode);
 	leftKneeNode->AttachChild(crotchNode);
 	crotchNode->AttachChild(rightKneeNode);
-	crotchNode->AttachChild(spineNode);
-	spineNode->AttachChild(neckNode);
+	crotchNode->AttachChild(neckNode);
+	
 	neckNode->AttachChild(rightElbowNode);
 	neckNode->AttachChild(headNode);
 	neckNode->AttachChild(leftElbowNode);
 
 
 	EffectorNode* foot = new EffectorNode(50.0f,glm::vec3(0.0f,PI/4.0f,0.0f), glm::vec3(0.0f), glm::vec3(2 * PI), length);
-	EffectorNode* lHand = new EffectorNode(1.0f, glm::vec3(0.0f), glm::vec3(0.0f), glm::vec3(2 * PI), length);
-	EffectorNode* rHand = new EffectorNode(1.0f, glm::vec3(0.0f), glm::vec3(0.0f), glm::vec3(2 * PI), length);
+	EffectorNode* lHand = new EffectorNode(1.0f, glm::vec3(0.0f), glm::vec3(0.0f), glm::vec3(0.0f,0.0f,PI), length);
+	EffectorNode* rHand = new EffectorNode(1.0f, glm::vec3(0.0f), glm::vec3(0.0f), glm::vec3(0.0f, 0.0f, PI ), length);
 	rightKneeNode->AttachChild(foot);
 	rightElbowNode->AttachChild(rHand);
 	leftElbowNode->AttachChild(lHand);
@@ -96,13 +96,12 @@ int main(int argc, char** argv)
 	TargetNode* lHandTarget = new TargetNode(glm::vec3(0.0f ,3.0f * length + length/1.41f, 1.0f*length+(length-length/1.41f)));
 	TargetNode* rHandTarget = new TargetNode(glm::vec3(0.0f, 3.0f * length + length / 1.41f, -2.0f*length-length/1.41f));
 	
-	
 	//EffectorNode* nodeWrist2 = new EffectorNode(1.0f, glm::vec3(0.0f, 0.0f, 1.57f), glm::vec3(0.0f), glm::vec3(2 * PI), 1.0f);
 	//EffectorNode* nodeWrist3 = new EffectorNode(1.0f, glm::vec3(0.0f, 0.0f, 1.57f), glm::vec3(0.0f), glm::vec3(2 * PI), 1.0f);
 	//TargetNode* nodeTarget1 = new TargetNode(glm::vec3(1.0f, 1.0f, -1.5f));
 	//TargetNode* nodeTarget2 = new TargetNode(glm::vec3(-1.0f, 1.0f, -1.5f));
 	//TargetNode* nodeTarget3 = new TargetNode(glm::vec3(0.0f, 0.0f, -2.0f));
-
+	
 	foot->target = footTarget;
 	lHand->target = lHandTarget;
 	rHand->target = rHandTarget;
@@ -154,7 +153,9 @@ int main(int argc, char** argv)
 		status = calculatePSO(particles,armPositions, bests, randoms, N, chainCuda, psoConfig, fitConfig, resultCoords, colliders, colliderCount);
 		if (status != cudaSuccess) break;
 		int ind = 0;
+
 		nodeArm->FromCoords(resultCoords, &ind);
+
 		#pragma region GLrendering
 
 		glClearColor(0.3f, 0.3f, 0.3f, 1.0f);
@@ -168,6 +169,7 @@ int main(int argc, char** argv)
 		footTarget->DrawCurrent(shader, VAO);
 		lHandTarget->DrawCurrent(shader, VAO);
 		rHandTarget->DrawCurrent(shader, VAO);
+		
 		drawColliders(colliders, colliderCount, shader, VAO);
 
 		glfwSwapBuffers(window);
@@ -191,7 +193,6 @@ int main(int argc, char** argv)
 	cudaFree(randoms);
 	cudaFree(colliders);
 	cudaFree(resultCoords);
-
 	delete(nodeArm);
 	delete(crotchNode);
 	delete(leftKneeNode);
@@ -246,6 +247,22 @@ unsigned int initCoordVAO(unsigned int *VBO)
 	return VAO;
 }
 
+
+void drawCoordinates(Shader shader, unsigned int VAO, glm::mat4 modelMatrix)
+{
+	
+	shader.use();
+	glBindVertexArray(VAO);
+	glLineWidth(1.0f);
+	shader.setMat4("view", view);
+	shader.setMat4("model", modelMatrix);
+	shader.setVec3("color", 1.0f, 0.0f, 0.0f);
+	glDrawArrays(GL_LINES, 0, 2);
+	shader.setVec3("color", 0.0f, 1.0f, 0.0f);
+	glDrawArrays(GL_LINES, 2, 2);
+	shader.setVec3("color", 0.0f, 0.0f, 1.0f);
+	glDrawArrays(GL_LINES, 4, 2);
+}
 
 
 void drawCoordinates(Shader shader, unsigned int VAO)
@@ -399,21 +416,27 @@ void calculateDeltaTime()
 
 void initColliders(obj_t* colliders, int colliderCount)
 {
-	colliders[0].pos = make_float3(1.0f, 0.0f, 0.0f);
-	colliders[0].quat = make_float4(0.0f, 0.0f, 0.0f, 1.0f);
-	colliders[0].x = colliders[0].y = colliders[0].z = 1.0f;
-
-	colliders[1].pos = make_float3(0.0f, 0.0f, -1.0f);
-	colliders[1].quat = make_float4(-0.403f, -0.819f, 0.273f, 0.304f);
-	colliders[1].x = colliders[1].y = colliders[1].z = 1.0f;
-
-	colliders[2].pos = make_float3(-1.0f, 0.0f, 0.0f);
-	colliders[2].quat = make_float4(0.0f, 0.0f, 0.0f, 1.0f);
-	colliders[2].x = colliders[2].y = colliders[2].z = 1.0f;
-
-	colliders[3].pos = make_float3(0.0f, 0.0f, 1.0f);
-	colliders[3].quat = make_float4(0.0f, 0.0f, 0.0f, 1.0f);
-	colliders[3].x = colliders[3].y = colliders[3].z = 1.0f;
+	if (colliderCount >= 1) {
+		colliders[0].pos = make_float3(1.0f, 0.0f, 0.0f);
+		colliders[0].quat = make_float4(0.0f, 0.0f, 0.0f, 1.0f);
+		colliders[0].x = colliders[0].y = colliders[0].z = 1.0f;
+	}
+	
+	if (colliderCount >= 2) {
+		colliders[1].pos = make_float3(0.0f, 0.0f, -1.0f);
+		colliders[1].quat = make_float4(-0.403f, -0.819f, 0.273f, 0.304f);
+		colliders[1].x = colliders[1].y = colliders[1].z = 1.0f;
+	}
+	if (colliderCount >= 3) {
+		colliders[2].pos = make_float3(-1.0f, 0.0f, 0.0f);
+		colliders[2].quat = make_float4(0.0f, 0.0f, 0.0f, 1.0f);
+		colliders[2].x = colliders[2].y = colliders[2].z = 1.0f;
+	}
+	if (colliderCount == 4) {
+		colliders[3].pos = make_float3(0.0f, 0.0f, 1.0f);
+		colliders[3].quat = make_float4(0.0f, 0.0f, 0.0f, 1.0f);
+		colliders[3].x = colliders[3].y = colliders[3].z = 1.0f;
+	}
 }
 
 void rotateCollider(obj_t* collider, float time)

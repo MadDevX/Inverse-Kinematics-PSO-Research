@@ -2,6 +2,7 @@
 #include <vector>
 #include "ik_constants.h"
 #define GIZMO_SCALE_MATRIX glm::scale(glm::mat4(1.0f), glm::vec3(GIZMO_SIZE))
+void drawCoordinates(Shader shader, unsigned int VAO, glm::mat4 modelMatrix);
 
 glm::mat4 rotateEuler(glm::mat4 matrix, glm::vec3 angles)
 {
@@ -79,15 +80,7 @@ public:
 		link.children.push_back(child);
 	}
 
-	void Draw(Shader shader, unsigned int VAO)
-	{
-		DrawCurrent(shader, VAO);
-		for (int i = 0; i < link.children.size(); i++)
-		{
-			DrawLink(shader, VAO, link.children[i]);
-			link.children[i]->Draw(shader, VAO);
-		}
-	}
+	
 
 	virtual glm::mat4 GetModelMatrix()
 	{
@@ -99,6 +92,18 @@ public:
 		{
 			return link.parent->GetModelMatrix() * rotateEuler(glm::mat4(1.0f), rotation) * glm::translate(glm::mat4(1.0f), glm::vec3(link.length, 0.0f, 0.0f));
 		}
+	}
+
+	void Draw(Shader shader, unsigned int VAO)
+	{
+		DrawCurrent(shader, VAO);
+		drawCoordinates(shader, VAO, this->GetModelMatrix());
+		for (int i = 0; i < link.children.size(); i++)
+		{
+			DrawLink(shader, VAO, link.children[i]);
+			link.children[i]->Draw(shader, VAO);
+		}
+		
 	}
 
 	void ToCUDA(NodeCUDA* allocatedPtr)
