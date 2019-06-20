@@ -62,40 +62,58 @@ int main(int argc, char** argv)
 
 	#pragma region Arm setup
 	nodeArm = new OriginNode(glm::vec3(0.0f), glm::vec3(0.0f), glm::vec3(0.0f), glm::vec3(2 * PI));
-	int elbows = 4;
-	Node** nodeElbows = new Node*[elbows];
-	for (int i = 0; i < elbows; i++)
-	{
-		nodeElbows[i] = new Node(glm::vec3(0.0f, 1.57f, 0.0f), glm::vec3(0.0f), glm::vec3(2 * PI), 1.0f);
-	}
-	EffectorNode* nodeWrist = new EffectorNode(1.0f,glm::vec3(0.0f, 1.57f, 0.0f), glm::vec3(0.0f), glm::vec3(2 * PI), 1.0f);
-	EffectorNode* nodeWrist2 = new EffectorNode(1.0f, glm::vec3(0.0f, 0.0f, 1.57f), glm::vec3(0.0f), glm::vec3(2 * PI), 1.0f);
-	EffectorNode* nodeWrist3 = new EffectorNode(1.0f, glm::vec3(0.0f, 0.0f, 1.57f), glm::vec3(0.0f), glm::vec3(2 * PI), 1.0f);
-	TargetNode* nodeTarget1 = new TargetNode(glm::vec3(1.0f, 1.0f, -1.5f));
-	TargetNode* nodeTarget2 = new TargetNode(glm::vec3(-1.0f, 1.0f, -1.5f));
-	TargetNode* nodeTarget3 = new TargetNode(glm::vec3(0.0f, 0.0f, -2.0f));
+	
+	float length = 1.0f;
+	
+	nodeArm = new OriginNode(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f), glm::vec3(2 * PI));
+	Node* leftKneeNode = new Node(glm::vec3(0.0f, 0.0f, PI / 2.0f), glm::vec3(0.0f), glm::vec3(2 * PI), length);
+	Node* crotchNode = new Node(glm::vec3(0.0f, PI / 4.0f, 0.0f), glm::vec3(0.0f), glm::vec3(2 * PI), length);
+	Node* rightKneeNode = new Node(glm::vec3(0.0f, PI / 2.0f, 0.0f), glm::vec3(0.0f), glm::vec3(2 * PI), length);
+	Node* spineNode = new Node(glm::vec3(0.0f, -PI / 4.0f, 0.0f), glm::vec3(0.0f), glm::vec3(2 * PI), length);
+	Node* neckNode = new Node(glm::vec3(0.0f),					 glm::vec3(0.0f), glm::vec3(2 * PI), length);
+	Node* rightElbowNode = new Node(glm::vec3(0.0f, PI/2.0f, 0.0f), glm::vec3(0.0f), glm::vec3(2 * PI), length);
+	Node* headNode = new Node(glm::vec3(0.0f),					glm::vec3(0.0f), glm::vec3(2 * PI), length);
+	Node* leftElbowNode = new Node(glm::vec3(0.0f, -PI/2.0f, 0.0f), glm::vec3(0.0f), glm::vec3(2 * PI), length);
 
-	movingTarget = nodeTarget1;
+	nodeArm->AttachChild(leftKneeNode);
+	leftKneeNode->AttachChild(crotchNode);
+	crotchNode->AttachChild(rightKneeNode);
+	crotchNode->AttachChild(spineNode);
+	spineNode->AttachChild(neckNode);
+	neckNode->AttachChild(rightElbowNode);
+	neckNode->AttachChild(headNode);
+	neckNode->AttachChild(leftElbowNode);
+
+
+	EffectorNode* foot = new EffectorNode(50.0f,glm::vec3(0.0f,PI/4.0f,0.0f), glm::vec3(0.0f), glm::vec3(2 * PI), length);
+	EffectorNode* lHand = new EffectorNode(1.0f, glm::vec3(0.0f), glm::vec3(0.0f), glm::vec3(2 * PI), length);
+	EffectorNode* rHand = new EffectorNode(1.0f, glm::vec3(0.0f), glm::vec3(0.0f), glm::vec3(2 * PI), length);
+	rightKneeNode->AttachChild(foot);
+	rightElbowNode->AttachChild(rHand);
+	leftElbowNode->AttachChild(lHand);
+
+	TargetNode* footTarget = new TargetNode(glm::vec3(0.0f, 0.0f,- 1.41f * length));
+	TargetNode* lHandTarget = new TargetNode(glm::vec3(0.0f ,3.0f * length + length/1.41f, 1.0f*length+(length-length/1.41f)));
+	TargetNode* rHandTarget = new TargetNode(glm::vec3(0.0f, 3.0f * length + length / 1.41f, -2.0f*length-length/1.41f));
+	
+	
+	//EffectorNode* nodeWrist2 = new EffectorNode(1.0f, glm::vec3(0.0f, 0.0f, 1.57f), glm::vec3(0.0f), glm::vec3(2 * PI), 1.0f);
+	//EffectorNode* nodeWrist3 = new EffectorNode(1.0f, glm::vec3(0.0f, 0.0f, 1.57f), glm::vec3(0.0f), glm::vec3(2 * PI), 1.0f);
+	//TargetNode* nodeTarget1 = new TargetNode(glm::vec3(1.0f, 1.0f, -1.5f));
+	//TargetNode* nodeTarget2 = new TargetNode(glm::vec3(-1.0f, 1.0f, -1.5f));
+	//TargetNode* nodeTarget3 = new TargetNode(glm::vec3(0.0f, 0.0f, -2.0f));
+
+	foot->target = footTarget;
+	lHand->target = lHandTarget;
+	rHand->target = rHandTarget;
+	movingTarget = footTarget;
 	targets = (TargetNode**)malloc(AMOUNT_OF_TARGETS * sizeof(TargetNode*));
-
-	targets[0] = nodeTarget1;
-	targets[1] = nodeTarget2;
-	targets[2] = nodeTarget3;
-
-	nodeWrist->target = nodeTarget1;
-	nodeWrist2->target = nodeTarget2;
-	nodeWrist3->target = nodeTarget3;
+	targets[0] = footTarget;
+	targets[1] = rHandTarget;
+	targets[2] = lHandTarget;
 
 
 
-	nodeArm->AttachChild(nodeElbows[0]);
-	for (int i = 1; i < elbows; i++)
-	{
-		nodeElbows[i - 1]->AttachChild(nodeElbows[i]);
-	}
-	nodeElbows[elbows - 1]->AttachChild(nodeWrist);
-	nodeElbows[elbows - 1]->AttachChild(nodeWrist2);
-	nodeElbows[elbows - 1]->AttachChild(nodeWrist3);
 
 #pragma endregion
 
@@ -109,7 +127,7 @@ int main(int argc, char** argv)
 	Coordinates* resultCoords;
 
 	PSOConfig psoConfig(0.5f, 0.5f, 1.25f, 15);
-	FitnessConfig fitConfig(3.0f,0.5f,0.1f);
+	FitnessConfig fitConfig(3.0f,0.0f,0.1f);
 	float *bests;
 
 	cudaMalloc((void**)&randoms, N * sizeof(curandState_t));
@@ -147,9 +165,9 @@ int main(int argc, char** argv)
 		shader.setMat4("projection", glm::perspective(glm::radians(45.0f), (float)WINDOW_WIDTH / WINDOW_HEIGHT, 0.1f, 100.0f));
 		drawCoordinates(shader, coordVAO);
 		nodeArm->Draw(shader, VAO);
-		nodeTarget1->DrawCurrent(shader, VAO);
-		nodeTarget2->DrawCurrent(shader, VAO);
-		nodeTarget3->DrawCurrent(shader, VAO);
+		footTarget->DrawCurrent(shader, VAO);
+		lHandTarget->DrawCurrent(shader, VAO);
+		rHandTarget->DrawCurrent(shader, VAO);
 		drawColliders(colliders, colliderCount, shader, VAO);
 
 		glfwSwapBuffers(window);
@@ -173,16 +191,20 @@ int main(int argc, char** argv)
 	cudaFree(randoms);
 	cudaFree(colliders);
 	cudaFree(resultCoords);
+
 	delete(nodeArm);
-	
-	for (int i = 0; i < elbows; i++)
-	{
-		delete(nodeElbows[i]);
-	}
-	delete[](nodeElbows);
-	delete(nodeWrist);
-	delete(nodeWrist2);
-	delete(nodeWrist3);
+	delete(crotchNode);
+	delete(leftKneeNode);
+	delete(rightKneeNode);
+	delete(rightElbowNode);
+	delete(leftElbowNode);
+	delete(neckNode);
+	delete(headNode);
+	delete(lHandTarget);
+	delete(rHandTarget);
+	delete(footTarget);
+
+
 	#pragma endregion
 
 	
