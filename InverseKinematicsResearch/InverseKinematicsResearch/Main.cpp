@@ -26,7 +26,7 @@ bool rotate = false;
 glm::mat4 view = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -5.0f));
 
 extern cudaError_t initGenerators(curandState_t *randoms, int size);
-extern cudaError_t calculatePSO(float *particles,float* positions, float *bests, curandState_t *randoms, int size, NodeCUDA *chain, PSOConfig PSOconfig,FitnessConfig fitnessConfig, Coordinates *result, obj_t* colliders, int colliderCount);
+extern cudaError_t calculatePSO(float *particles, float *positions, float *bests, float *matrices, curandState_t *randoms, int size, NodeCUDA *chain, PSOConfig PSOconfig,FitnessConfig fitnessConfig, Coordinates *result, obj_t* colliders, int colliderCount);
 GLFWwindow* initOpenGLContext();
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
@@ -61,16 +61,16 @@ int main(int argc, char** argv)
 	#pragma endregion
 
 	#pragma region Arm setup
-	nodeArm = new OriginNode(glm::vec3(0.0f), glm::vec3(0.0f), glm::vec3(0.0f), glm::vec3(2 * PI));
+	nodeArm = new OriginNode(glm::vec3(0.0f), glm::vec3(0.0f), glm::vec3(-2 * PI), glm::vec3(2 * PI));
 	int elbows = 4;
 	Node** nodeElbows = new Node*[elbows];
 	for (int i = 0; i < elbows; i++)
 	{
-		nodeElbows[i] = new Node(glm::vec3(0.0f, 1.57f, 0.0f), glm::vec3(0.0f), glm::vec3(2 * PI), 1.0f);
+		nodeElbows[i] = new Node(glm::vec3(0.0f, 1.57f, 0.0f), glm::vec3(-2 * PI), glm::vec3(2 * PI), 1.0f);
 	}
-	EffectorNode* nodeWrist = new EffectorNode(1.0f,glm::vec3(0.0f, 1.57f, 0.0f), glm::vec3(0.0f), glm::vec3(2 * PI), 1.0f);
-	EffectorNode* nodeWrist2 = new EffectorNode(1.0f, glm::vec3(0.0f, 0.0f, 1.57f), glm::vec3(0.0f), glm::vec3(2 * PI), 1.0f);
-	EffectorNode* nodeWrist3 = new EffectorNode(1.0f, glm::vec3(0.0f, 0.0f, 1.57f), glm::vec3(0.0f), glm::vec3(2 * PI), 1.0f);
+	EffectorNode* nodeWrist = new EffectorNode(1.0f,glm::vec3(0.0f, 1.57f, 0.0f), glm::vec3(-2 * PI), glm::vec3(2 * PI), 1.0f);
+	EffectorNode* nodeWrist2 = new EffectorNode(1.0f, glm::vec3(0.0f, 0.0f, 1.57f), glm::vec3(-2 * PI), glm::vec3(2 * PI), 1.0f);
+	EffectorNode* nodeWrist3 = new EffectorNode(1.0f, glm::vec3(0.0f, 0.0f, 1.57f), glm::vec3(-2 * PI), glm::vec3(2 * PI), 1.0f);
 	TargetNode* nodeTarget1 = new TargetNode(glm::vec3(1.0f, 1.0f, -1.5f));
 	TargetNode* nodeTarget2 = new TargetNode(glm::vec3(-1.0f, 1.0f, -1.5f));
 	TargetNode* nodeTarget3 = new TargetNode(glm::vec3(0.0f, 0.0f, -2.0f));
@@ -105,21 +105,26 @@ int main(int argc, char** argv)
 
 	curandState_t *randoms;
 	float *particles;
-	obj_t* colliders;
+	float *matrices;
+	obj_t* colliders = nullptr;
 	Coordinates* resultCoords;
 
 	PSOConfig psoConfig(0.5f, 0.5f, 1.25f, 15);
 	FitnessConfig fitConfig(3.0f,0.0f,0.1f);
 	float *bests;
 
+	cudaError_t status;
 	cudaMalloc((void**)&randoms, N * DEGREES_OF_FREEDOM * sizeof(curandState_t));
 	cudaMalloc((void**)&particles, N * 3 * DEGREES_OF_FREEDOM * sizeof(float));
+	cudaMalloc((void**)&matrices, N * NODE_COUNT * 16 * sizeof(float));
 	cudaMalloc((void**)&bests, N * sizeof(float));
-	cudaMallocManaged((void**)&colliders, colliderCount * sizeof(obj_t));
 	cudaMallocManaged((void**)&resultCoords, sizeof(Coordinates));
-	initColliders(colliders, colliderCount);
+	if (colliderCount > 0)
+	{
+		cudaMallocManaged((void**)&colliders, colliderCount * sizeof(obj_t));
+		initColliders(colliders, colliderCount);
+	}
 	initGenerators(randoms, N * DEGREES_OF_FREEDOM);
-
 	while (!glfwWindowShouldClose(window))
 	{
 		calculateDeltaTime();
@@ -129,12 +134,11 @@ int main(int argc, char** argv)
 
 		//rotateCollider(&colliders[0], (float)glfwGetTime());
 
-		cudaError_t status;
 
 		nodeArm->ToCUDA(chainCuda);
 		nodeArm->FillPositions(armPositions, chainCuda); 
 
-		status = calculatePSO(particles,armPositions, bests, randoms, N, chainCuda, psoConfig, fitConfig, resultCoords, colliders, colliderCount);
+		status = calculatePSO(particles, armPositions, bests, matrices, randoms, N, chainCuda, psoConfig, fitConfig, resultCoords, colliders, colliderCount);
 		if (status != cudaSuccess) break;
 		int ind = 0;
 		nodeArm->FromCoords(resultCoords, &ind);
@@ -171,6 +175,7 @@ int main(int argc, char** argv)
 	cudaFree(bests);
 	cudaFree(chainCuda);
 	cudaFree(particles);
+	cudaFree(matrices);
 	cudaFree(randoms);
 	cudaFree(colliders);
 	cudaFree(resultCoords);
