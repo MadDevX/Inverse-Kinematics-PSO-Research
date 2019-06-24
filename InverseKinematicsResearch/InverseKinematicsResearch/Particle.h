@@ -54,13 +54,13 @@ struct Particle
 struct FitnessConfig
 {
 	float angleWeight;
-	float distanceWeight;
+	float positionWeight;
 	float errorThreshold;
 
 	FitnessConfig(float angleWeight = 3.0f, float distanceWeight = 0.0f, float errorThreshold = 0.1f)
 	{
 		this->angleWeight = angleWeight;
-		this->distanceWeight = distanceWeight;
+		this->positionWeight = distanceWeight;
 		this->errorThreshold = errorThreshold;
 	}
 

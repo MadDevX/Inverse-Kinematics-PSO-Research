@@ -14,7 +14,7 @@
 #include "BoxCollider.h"
 int WINDOW_WIDTH = 800;
 int WINDOW_HEIGHT = 600;
-int N = 32768;
+int N = 4096;
 int colliderCount = 0;
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
@@ -26,7 +26,7 @@ bool rotate = false;
 glm::mat4 view = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -5.0f));
 
 extern cudaError_t initGenerators(curandState_t *randoms, int size);
-extern cudaError_t calculatePSO(float *particles, float *positions, float *bests, float *matrices, curandState_t *randoms, int size, NodeCUDA *chain, PSOConfig PSOconfig,FitnessConfig fitnessConfig, Coordinates *result, obj_t* colliders, int colliderCount);
+extern cudaError_t calculatePSO(float *particles, float *positions, float *bests, float *currents, float *matrices, curandState_t *randoms, int size, NodeCUDA *chain, PSOConfig PSOconfig,FitnessConfig fitnessConfig, Coordinates *result, obj_t* colliders, int colliderCount);
 GLFWwindow* initOpenGLContext();
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
@@ -112,12 +112,14 @@ int main(int argc, char** argv)
 	PSOConfig psoConfig(0.5f, 0.5f, 1.25f, 15);
 	FitnessConfig fitConfig(3.0f,0.0f,0.1f);
 	float *bests;
+	float *currents;
 
 	cudaError_t status;
 	cudaMalloc((void**)&randoms, N * DEGREES_OF_FREEDOM * sizeof(curandState_t));
 	cudaMalloc((void**)&particles, N * 3 * DEGREES_OF_FREEDOM * sizeof(float));
 	cudaMalloc((void**)&matrices, N * NODE_COUNT * 16 * sizeof(float));
 	cudaMalloc((void**)&bests, N * sizeof(float));
+	cudaMalloc((void**)&currents, N * sizeof(float));
 	cudaMallocManaged((void**)&resultCoords, sizeof(Coordinates));
 	if (colliderCount > 0)
 	{
@@ -138,7 +140,7 @@ int main(int argc, char** argv)
 		nodeArm->ToCUDA(chainCuda);
 		nodeArm->FillPositions(armPositions, chainCuda); 
 
-		status = calculatePSO(particles, armPositions, bests, matrices, randoms, N, chainCuda, psoConfig, fitConfig, resultCoords, colliders, colliderCount);
+		status = calculatePSO(particles, armPositions, bests, currents, matrices, randoms, N, chainCuda, psoConfig, fitConfig, resultCoords, colliders, colliderCount);
 		if (status != cudaSuccess) break;
 		int ind = 0;
 		nodeArm->FromCoords(resultCoords, &ind);
@@ -173,6 +175,7 @@ int main(int argc, char** argv)
 
 	cudaFree(armPositions);
 	cudaFree(bests);
+	cudaFree(currents);
 	cudaFree(chainCuda);
 	cudaFree(particles);
 	cudaFree(matrices);
