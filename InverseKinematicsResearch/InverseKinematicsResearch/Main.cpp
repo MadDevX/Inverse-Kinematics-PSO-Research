@@ -68,7 +68,7 @@ int main(int argc, char** argv)
 	nodeArm = new OriginNode(glm::vec3(0.0f, length/ 1.41f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f), glm::vec3(2 * PI));
 	Node* leftKneeNode = new Node(glm::vec3(0.0f, 0.0f, PI/2.0f), glm::vec3(-PI), glm::vec3(PI), length);
 	Node* crotchNode = new Node(glm::vec3(0.0f, PI / 2.0f, 0.0f), glm::vec3(-PI,0.0f,-PI), glm::vec3(PI), length);
-	Node* rightKneeNode = new Node(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, -PI), glm::vec3(PI/2.0f,PI / 2.0f,PI), length);
+	Node* rightKneeNode = new Node(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(PI/2.0f,PI / 2.0f,PI), length);
 	
 	Node* neckNode = new Node(glm::vec3(0.0f,-PI/2.0f,0.0f),glm::vec3(-PI/8.0f, -PI / 8.0f,-PI/2.0f), glm::vec3(PI / 8.0f, PI / 8.0f, PI / 2.0f), length);
 	Node* rightElbowNode = new Node(glm::vec3(0.0f, PI/2.0f, 0.0f), glm::vec3(-PI, 0.0f, -PI / 2.0f), glm::vec3(0.0f, PI, PI / 2.0f), length);
