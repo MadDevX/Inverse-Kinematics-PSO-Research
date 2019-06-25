@@ -121,7 +121,7 @@ int main(int argc, char** argv)
 	Coordinates* resultCoords;
 
 	PSOConfig psoConfig(0.5f, 0.5f, 1.25f, 15);
-	FitnessConfig fitConfig(3.0f,0.5,0.1f);
+	FitnessConfig fitConfig(3.0f,0.0f,0.1f);
 	float *bests;
 	int* ready;
 	
@@ -158,7 +158,7 @@ int main(int argc, char** argv)
 		glfwPollEvents();
 
 		
-		if ((*ready))
+		if ((*ready)&&gatherdata)
 		{
 			
 			nodeArm->FromCoords(defaultCoordinates);

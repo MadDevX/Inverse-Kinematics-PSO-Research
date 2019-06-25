@@ -283,7 +283,7 @@ cudaError_t calculatePSO(float* particles, float* positions, float* bests,
 	cudaError_t status;
 	float globalMin;
 	float currentGlobalMin;
-	float eps = 0.75;
+	float eps = 0.00005;
 	int numBlocks = (size + blockSize - 1) / blockSize;
 	int globalUpdateNumBlocks = (DEGREES_OF_FREEDOM + blockSize - 1) / blockSize;
 	int sharedMemorySize = sizeof(NodeCUDA)*((DEGREES_OF_FREEDOM / 3) + 1);
