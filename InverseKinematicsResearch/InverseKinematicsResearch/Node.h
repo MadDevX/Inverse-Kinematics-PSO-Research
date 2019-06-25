@@ -166,7 +166,10 @@ public:
 	void ToCoords(Coordinates *coords)
 	{
 		int i = 0;
+		//coords->positions[0] = 3.0f;
+		//printf("%d", coords->positions[0]);
 		FillCoords(coords, &i);
+		
 	}
 
 	void FillCoords(Coordinates *coords, int* index)
@@ -415,7 +418,19 @@ public:
 		this->effectorWeight = effectorWeight;
 	}
 
+	float calculateDistance()
+	{
+		glm::vec3 pos = (glm::vec3)
+			(this->GetModelMatrix() * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+		
+		glm::vec3 diff = target->position - pos;
+		
+		return glm::length(diff);
+	}
+
+
 protected:
+
 
 
 	void FillNodeCUDAtype(NodeCUDA* node) override
