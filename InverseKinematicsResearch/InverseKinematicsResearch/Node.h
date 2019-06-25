@@ -163,6 +163,38 @@ public:
 		cudaMallocManaged(&nodeC, nodeCount * sizeof(NodeCUDA));
 		return nodeC;
 	}
+	void ToCoords(Coordinates *coords)
+	{
+		int i = 0;
+		FillCoords(coords, &i);
+	}
+
+	void FillCoords(Coordinates *coords, int* index)
+	{
+
+
+		int nodeIndex = (*index) - 1;
+
+		if (nodeIndex != -1)
+		{
+			nodeIndex*=3;		
+			coords->positions[nodeIndex] = this->rotation.x;
+			coords->positions[nodeIndex+1] = this->rotation.y;
+			coords->positions[nodeIndex+2] = this->rotation.z;
+		}
+
+		(*index)++;
+		for (int i = 0; i < link.children.size(); i++)
+		{
+			link.children[i]->FillCoords(coords, index);
+		}
+	}
+
+	void FromCoords(Coordinates *coords)
+	{
+		int i = 0;
+		FromCoords(coords,&i);
+	}
 
 	void FromCoords(Coordinates *coords, int *nodeIndex)
 	{

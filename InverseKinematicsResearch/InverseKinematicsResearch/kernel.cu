@@ -278,11 +278,12 @@ __global__ void updateGlobalBestCoordsKernel(float *particles, int particleCount
 
 cudaError_t calculatePSO(float* particles, float* positions, float* bests,
 				curandState_t *randoms, int size, NodeCUDA *chain, PSOConfig psoConfig, FitnessConfig fitConfig,
-				Coordinates *result, obj_t* colliders, int colliderCount)
+				Coordinates *result, obj_t* colliders, int colliderCount, int* ready)
 {
 	cudaError_t status;
 	float globalMin;
 	float currentGlobalMin;
+	float eps = 0.75;
 	int numBlocks = (size + blockSize - 1) / blockSize;
 	int globalUpdateNumBlocks = (DEGREES_OF_FREEDOM + blockSize - 1) / blockSize;
 	int sharedMemorySize = sizeof(NodeCUDA)*((DEGREES_OF_FREEDOM / 3) + 1);
@@ -321,7 +322,17 @@ cudaError_t calculatePSO(float* particles, float* positions, float* bests,
 			checkCuda(status = cudaDeviceSynchronize());
 		}
 	}
-
+	
+	if(currentGlobalMin<=eps)
+	{
+		*ready = 1;
+	}
+	else
+	{
+		*ready = 0;
+	}
+	printf("%d\n", *ready);
+	printf("%f\n", currentGlobalMin);
 	return status;
 }
 

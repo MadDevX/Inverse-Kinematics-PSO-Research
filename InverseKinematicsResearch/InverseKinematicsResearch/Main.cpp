@@ -26,7 +26,7 @@ bool rotate = false;
 glm::mat4 view = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -5.0f));
 
 extern cudaError_t initGenerators(curandState_t *randoms, int size);
-extern cudaError_t calculatePSO(float *particles,float* positions, float *bests, curandState_t *randoms, int size, NodeCUDA *chain, PSOConfig PSOconfig,FitnessConfig fitnessConfig, Coordinates *result, obj_t* colliders, int colliderCount);
+extern cudaError_t calculatePSO(float *particles,float* positions, float *bests, curandState_t *randoms, int size, NodeCUDA *chain, PSOConfig PSOconfig,FitnessConfig fitnessConfig, Coordinates *result, obj_t* colliders, int colliderCount,int* ready);
 GLFWwindow* initOpenGLContext();
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
@@ -38,18 +38,21 @@ void drawCoordinates(Shader shader, unsigned int VAO);
 void initColliders(obj_t* colliders, int colliderCount);
 void drawColliders(obj_t* colliders, int colliderCount, Shader shader, unsigned int VAO);
 void rotateCollider(obj_t* collider, float time);
+void resetArm();
 
 std::ofstream openStream(char* fileName);
-void writeData(std::ofstream stream, char* data);
-void closeStr(std::ofstream stream);
-
 void fillPositionData(float* positions, Node * Origin,int*ind);
-
 
 TargetNode* movingTarget;
 OriginNode* nodeArm;
 TargetNode** targets;
+Coordinates* defaultCoordinates;
+TargetNode* nodeTarget1;
+TargetNode* nodeTarget2;
+TargetNode* nodeTarget3;
 
+int gatherdata = 0;
+int framesCounter = 0;
 
 int main(int argc, char** argv)
 {
@@ -79,9 +82,9 @@ int main(int argc, char** argv)
 	EffectorNode* nodeWrist = new EffectorNode(1.0f,glm::vec3(0.0f, 1.57f, 0.0f), glm::vec3(0.0f), glm::vec3(2 * PI), 1.0f);
 	EffectorNode* nodeWrist2 = new EffectorNode(1.0f, glm::vec3(0.0f, 0.0f, 1.57f), glm::vec3(0.0f), glm::vec3(2 * PI), 1.0f);
 	EffectorNode* nodeWrist3 = new EffectorNode(1.0f, glm::vec3(0.0f, 0.0f, 1.57f), glm::vec3(0.0f), glm::vec3(2 * PI), 1.0f);
-	TargetNode* nodeTarget1 = new TargetNode(glm::vec3(1.0f, 1.0f, -1.5f));
-	TargetNode* nodeTarget2 = new TargetNode(glm::vec3(-1.0f, 1.0f, -1.5f));
-	TargetNode* nodeTarget3 = new TargetNode(glm::vec3(0.0f, 0.0f, -2.0f));
+	nodeTarget1 = new TargetNode(glm::vec3(1.0f, 1.0f, -1.5f));
+	nodeTarget2 = new TargetNode(glm::vec3(-1.0f, 1.0f, -1.5f));
+	nodeTarget3 = new TargetNode(glm::vec3(0.0f, 0.0f, -2.0f));
 
 	movingTarget = nodeTarget1;
 	targets = (TargetNode**)malloc(AMOUNT_OF_TARGETS * sizeof(TargetNode*));
@@ -89,7 +92,7 @@ int main(int argc, char** argv)
 	targets[0] = nodeTarget1;
 	targets[1] = nodeTarget2;
 	targets[2] = nodeTarget3;
-
+	
 	nodeWrist->target = nodeTarget1;
 	nodeWrist2->target = nodeTarget2;
 	nodeWrist3->target = nodeTarget3;
@@ -105,6 +108,7 @@ int main(int argc, char** argv)
 	nodeElbows[elbows - 1]->AttachChild(nodeWrist2);
 	nodeElbows[elbows - 1]->AttachChild(nodeWrist3);
 
+	
 #pragma endregion
 
    
@@ -117,70 +121,89 @@ int main(int argc, char** argv)
 	Coordinates* resultCoords;
 
 	PSOConfig psoConfig(0.5f, 0.5f, 1.25f, 15);
-	FitnessConfig fitConfig(3.0f,0.5f,0.1f);
+	FitnessConfig fitConfig(3.0f,0.5,0.1f);
 	float *bests;
+	int* ready;
+	
 
+	ready = (int*)malloc(sizeof(int));
 	cudaMalloc((void**)&randoms, N * sizeof(curandState_t));
 	cudaMalloc((void**)&particles, N * 3 * DEGREES_OF_FREEDOM * sizeof(float));
 	cudaMalloc((void**)&bests, N * sizeof(float));
 	cudaMallocManaged((void**)&colliders, colliderCount * sizeof(obj_t));
 	cudaMallocManaged((void**)&resultCoords, sizeof(Coordinates));
+	cudaMallocManaged((void**)&defaultCoordinates, sizeof(Coordinates));
 	initColliders(colliders, colliderCount);
 	initGenerators(randoms, N);
 
 	std::ofstream posStream;
 	std::ofstream degStream;
-
+	std::ofstream frameStream;
 	posStream = openStream("IK-diagnostics-positions.txt");
 	degStream = openStream("IK-diagnostics-degrees.txt");
-	
-	char* data = "3.34234234\0";
+	frameStream = openStream("IK-diagnostics-frames.txt");
 
 	float * posArray = (float*)malloc( (NODE_COUNT - 1) * sizeof(float) * 3 );
 	float * degsArray;
-
+	
+	
+	*ready = 0;
+	nodeArm->ToCoords(defaultCoordinates);
 
 	while (!glfwWindowShouldClose(window))
 	{
-
+		
 		calculateDeltaTime();
 		processInput(window);
 		glfwPollEvents();
 
+		
+		if ((*ready))
+		{
+			
+			nodeArm->FromCoords(defaultCoordinates);
+			frameStream << framesCounter << "\n";
+			gatherdata = 0;
+			framesCounter = 0;
+			(*ready) = 0;
+			resetArm();
+		}
+
+#pragma region write to files
+		if (gatherdata)
+		{
+			framesCounter++;
+			int k = 0;
+			fillPositionData(posArray, nodeArm, &k);
+			degsArray = resultCoords->positions;
+
+			for (int deg = 0; deg < DEGREES_OF_FREEDOM; deg++)
+			{
+				degStream << degsArray[deg] << ";";
+			}
+			degStream << "\n";
+
+			for (int deg = 0; deg < DEGREES_OF_FREEDOM; deg++)
+			{
+				posStream << posArray[deg] << ";";
+			}
+			posStream << "\n";
+
+		}		
+#pragma endregion
 		//rotateCollider(&colliders[0], (float)glfwGetTime());
 
 		cudaError_t status;
 
 		nodeArm->ToCUDA(chainCuda);
-		nodeArm->FillPositions(armPositions, chainCuda); 
+		nodeArm->FillPositions(armPositions, chainCuda);
 
-#pragma region write to files
-		int k = 0;
-		fillPositionData(posArray, nodeArm, &k);
-		degsArray = resultCoords->positions;
-
-		for (int deg = 0; deg < DEGREES_OF_FREEDOM; deg++)
-		{
-			degStream << degsArray[deg] << ";";
-		}
-		degStream << "\n";
-		
-		for (int deg = 0; deg < DEGREES_OF_FREEDOM; deg++)
-		{
-			posStream << posArray[deg] << ";";
-		}
-		posStream << "\n";
-
-#pragma endregion
-
-
-
-		status = calculatePSO(particles,armPositions, bests, randoms, N, chainCuda, psoConfig, fitConfig, resultCoords, colliders, colliderCount);
+		status = calculatePSO(particles,armPositions, bests, randoms, N, chainCuda, psoConfig, fitConfig, resultCoords, colliders, colliderCount,ready);
+	
 		if (status != cudaSuccess) break;
-		int ind = 0;
+		nodeArm->FromCoords(resultCoords);
 
-		nodeArm->FromCoords(resultCoords, &ind);
-		#pragma region GLrendering
+#pragma region GLrendering
 
 		glClearColor(0.3f, 0.3f, 0.3f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -211,6 +234,7 @@ int main(int argc, char** argv)
 
 	posStream.close();
 	degStream.close();
+	frameStream.close();
 
 	cudaFree(armPositions);
 	cudaFree(bests);
@@ -236,28 +260,12 @@ int main(int argc, char** argv)
 	return 0;
 }
 
-#pragma region TextSaving
 
 std::ofstream openStream(char * filename)
 {
 	std::ofstream ofs(filename, std::ofstream::out|std::ofstream::app);
 	return ofs;
 }
-
-
-void writeData(std::ofstream stream, char* data)
-{
-	//fwrite(data, sizeof(char), sizeof(data), file);
-	stream << data;
-}
-
-
-void closeStream(std::ofstream stream)
-{
-	stream.close();
-}
-
-#pragma endregion
 
 void fillPositionData(float * positions, Node * Origin, int* ind)
 {
@@ -283,6 +291,14 @@ void fillPositionData(float * positions, Node * Origin, int* ind)
 
 }
 
+void resetArm()
+{
+	
+	nodeArm->FromCoords(defaultCoordinates);
+	nodeTarget1->position = glm::vec3(1.0f, 1.0f, -1.5f);
+	nodeTarget2->position = glm::vec3(-1.0f, 1.0f, -1.5f);
+	nodeTarget3->position = glm::vec3(0.0f, 0.0f, -2.0f);
+}
 
 #pragma region GLfun
 
@@ -357,6 +373,13 @@ void processInput(GLFWwindow *window)
 
 	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
 		glfwSetWindowShouldClose(window, true);
+	if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS)
+		{
+			framesCounter = 0;
+			gatherdata = 1;
+			resetArm();
+		}
+
 	if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS)
 		nodeArm->translate(glm::vec3(-1.0f, 0.0f, 0.0f) * deltaTime);
 	if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS)
