@@ -1,4 +1,4 @@
-#include<stdio.h>
+#include <stdio.h>
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
@@ -39,6 +39,13 @@ void initColliders(obj_t* colliders, int colliderCount);
 void drawColliders(obj_t* colliders, int colliderCount, Shader shader, unsigned int VAO);
 void rotateCollider(obj_t* collider, float time);
 
+std::ofstream openStream(char* fileName);
+void writeData(std::ofstream stream, char* data);
+void closeStr(std::ofstream stream);
+
+void fillPositionData(float* positions, Node * Origin,int*ind);
+
+
 TargetNode* movingTarget;
 OriginNode* nodeArm;
 TargetNode** targets;
@@ -58,6 +65,7 @@ int main(int argc, char** argv)
 	unsigned int VBO, coordVBO, linkVBO;
 	unsigned int VAO = initVAO(&VBO);
 	unsigned int coordVAO = initCoordVAO(&coordVBO);
+
 	#pragma endregion
 
 	#pragma region Arm setup
@@ -120,8 +128,21 @@ int main(int argc, char** argv)
 	initColliders(colliders, colliderCount);
 	initGenerators(randoms, N);
 
+	std::ofstream posStream;
+	std::ofstream degStream;
+
+	posStream = openStream("IK-diagnostics-positions.txt");
+	degStream = openStream("IK-diagnostics-degrees.txt");
+	
+	char* data = "3.34234234\0";
+
+	float * posArray = (float*)malloc( (NODE_COUNT - 1) * sizeof(float) * 3 );
+	float * degsArray;
+
+
 	while (!glfwWindowShouldClose(window))
 	{
+
 		calculateDeltaTime();
 		processInput(window);
 		glfwPollEvents();
@@ -133,9 +154,31 @@ int main(int argc, char** argv)
 		nodeArm->ToCUDA(chainCuda);
 		nodeArm->FillPositions(armPositions, chainCuda); 
 
+#pragma region write to files
+		int k = 0;
+		fillPositionData(posArray, nodeArm, &k);
+		degsArray = resultCoords->positions;
+
+		for (int deg = 0; deg < DEGREES_OF_FREEDOM; deg++)
+		{
+			degStream << degsArray[deg] << ";";
+		}
+		degStream << "\n";
+		
+		for (int deg = 0; deg < DEGREES_OF_FREEDOM; deg++)
+		{
+			posStream << posArray[deg] << ";";
+		}
+		posStream << "\n";
+
+#pragma endregion
+
+
+
 		status = calculatePSO(particles,armPositions, bests, randoms, N, chainCuda, psoConfig, fitConfig, resultCoords, colliders, colliderCount);
 		if (status != cudaSuccess) break;
 		int ind = 0;
+
 		nodeArm->FromCoords(resultCoords, &ind);
 		#pragma region GLrendering
 
@@ -166,6 +209,9 @@ int main(int argc, char** argv)
 
 	glfwTerminate();
 
+	posStream.close();
+	degStream.close();
+
 	cudaFree(armPositions);
 	cudaFree(bests);
 	cudaFree(chainCuda);
@@ -179,6 +225,7 @@ int main(int argc, char** argv)
 	{
 		delete(nodeElbows[i]);
 	}
+
 	delete[](nodeElbows);
 	delete(nodeWrist);
 	delete(nodeWrist2);
@@ -188,6 +235,55 @@ int main(int argc, char** argv)
 	
 	return 0;
 }
+
+#pragma region TextSaving
+
+std::ofstream openStream(char * filename)
+{
+	std::ofstream ofs(filename, std::ofstream::out|std::ofstream::app);
+	return ofs;
+}
+
+
+void writeData(std::ofstream stream, char* data)
+{
+	//fwrite(data, sizeof(char), sizeof(data), file);
+	stream << data;
+}
+
+
+void closeStream(std::ofstream stream)
+{
+	stream.close();
+}
+
+#pragma endregion
+
+void fillPositionData(float * positions, Node * Origin, int* ind)
+{
+	int index = (*ind) -1;
+	if (index != -1)
+	{
+		
+		index *= 3;
+		glm::vec4 originVector(0.0f, 0.0f, 0.0f, 1.0f);
+		glm::mat4 model = Origin->GetModelMatrix();
+		glm::vec4 position = model * originVector;
+
+		positions[index] = position.x;
+		positions[index+1] = position.y;
+		positions[index+2] = position.z;
+	}
+	
+	for (int i = 0; i < Origin->link.children.size(); i++)
+	{
+		*ind = *ind + 1;
+		fillPositionData(positions, Origin->link.children[i], ind);
+	}
+
+}
+
+
 #pragma region GLfun
 
 
