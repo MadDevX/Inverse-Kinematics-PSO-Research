@@ -97,7 +97,7 @@ public:
 	void Draw(Shader shader, unsigned int VAO)
 	{
 		DrawCurrent(shader, VAO);
-		drawCoordinates(shader, VAO, this->GetModelMatrix());
+		///drawCoordinates(shader, VAO, this->GetModelMatrix());
 		for (int i = 0; i < link.children.size(); i++)
 		{
 			DrawLink(shader, VAO, link.children[i]);

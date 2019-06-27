@@ -65,15 +65,15 @@ int main(int argc, char** argv)
 	
 	float length = 1.0f;
 	
-	nodeArm = new OriginNode(glm::vec3(0.0f, length/ 1.41f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f), glm::vec3(2 * PI));
+	nodeArm = new OriginNode(glm::vec3(0.0f, -1.5f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f), glm::vec3(2 * PI));
 	Node* leftKneeNode = new Node(glm::vec3(0.0f, 0.0f, PI/2.0f), glm::vec3(-PI), glm::vec3(PI), length);
 	Node* crotchNode = new Node(glm::vec3(0.0f, PI / 2.0f, 0.0f), glm::vec3(-PI,0.0f,-PI), glm::vec3(PI), length);
 	Node* rightKneeNode = new Node(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(PI/2.0f,PI / 2.0f,PI), length);
 	
-	Node* neckNode = new Node(glm::vec3(0.0f,-PI/2.0f,0.0f),glm::vec3(-PI/8.0f, -PI / 8.0f,-PI/2.0f), glm::vec3(PI / 8.0f, PI / 8.0f, PI / 2.0f), length);
-	Node* rightElbowNode = new Node(glm::vec3(0.0f, PI/2.0f, 0.0f), glm::vec3(-PI, 0.0f, -PI / 2.0f), glm::vec3(0.0f, PI, PI / 2.0f), length);
-	Node* headNode = new Node(glm::vec3(0.0f),					glm::vec3(-PI, -PI / 8.0f, -PI / 8.0f), glm::vec3(PI, PI / 8.0f, PI / 8.0f), length);
-	Node* leftElbowNode = new Node(glm::vec3(0.0f, -PI/2.0f, 0.0f), glm::vec3(0.0f, -PI, -PI / 2.0f), glm::vec3(PI / 2.0f, 0.0f, PI / 2.0f), length);
+	Node* neckNode = new Node(glm::vec3(0.0f,-PI/2.0f,0.0f),glm::vec3(-PI/8.0f, -PI / 8.0f,-PI/2.0f), glm::vec3(PI / 8.0f, PI / 8.0f, PI / 2.0f), length * 0.8f);
+	Node* rightElbowNode = new Node(glm::vec3(0.0f, PI/2.0f, 0.0f), glm::vec3(-PI, 0.0f, -PI / 2.0f), glm::vec3(0.0f, PI, PI / 2.0f), length * 0.7f);
+	Node* headNode = new Node(glm::vec3(0.0f),					glm::vec3(-PI, -PI / 8.0f, -PI / 8.0f), glm::vec3(PI, PI / 8.0f, PI / 8.0f), length * 0.3f);
+	Node* leftElbowNode = new Node(glm::vec3(0.0f, -PI/2.0f, 0.0f), glm::vec3(0.0f, -PI, -PI / 2.0f), glm::vec3(PI / 2.0f, 0.0f, PI / 2.0f), length * 0.7f);
 
 	nodeArm->AttachChild(leftKneeNode);
 	leftKneeNode->AttachChild(crotchNode);
@@ -86,15 +86,15 @@ int main(int argc, char** argv)
 
 
 	EffectorNode* foot = new EffectorNode(50.0f,glm::vec3(0.0f,PI/2.0f,0.0f), glm::vec3(-PI,0,-PI), glm::vec3(PI), length);
-	EffectorNode* lHand = new EffectorNode(1.0f, glm::vec3(0.0f), glm::vec3(0.0f), glm::vec3(0.0f,0.0f,PI), length);
-	EffectorNode* rHand = new EffectorNode(1.0f, glm::vec3(0.0f), glm::vec3(0.0f), glm::vec3(0.0f, 0.0f, PI ), length);
+	EffectorNode* lHand = new EffectorNode(1.0f, glm::vec3(0.0f), glm::vec3(0.0f), glm::vec3(0.0f,0.0f,PI), length * 0.7f);
+	EffectorNode* rHand = new EffectorNode(1.0f, glm::vec3(0.0f), glm::vec3(0.0f), glm::vec3(0.0f, 0.0f, PI ), length * 0.7f);
 	rightKneeNode->AttachChild(foot);
 	rightElbowNode->AttachChild(rHand);
 	leftElbowNode->AttachChild(lHand);
 
-	TargetNode* footTarget = new TargetNode(glm::vec3(0.0f, 0.0f,- 1.41f * length));
-	TargetNode* lHandTarget = new TargetNode(glm::vec3(0.0f ,3.0f * length + length/1.41f, 1.0f*length+(length-length/1.41f)));
-	TargetNode* rHandTarget = new TargetNode(glm::vec3(0.0f, 3.0f * length + length / 1.41f, -2.0f*length-length/1.41f));
+	TargetNode* footTarget = new TargetNode(glm::vec3(0.0f, -1.5f,- 1.41f * length));
+	TargetNode* lHandTarget = new TargetNode(glm::vec3(0.0f ,1.5f * length + length/1.41f, 1.0f*length+(length-length/1.41f)));
+	TargetNode* rHandTarget = new TargetNode(glm::vec3(0.0f, 1.5f * length + length / 1.41f, -2.0f*length-length/1.41f));
 	
 	//EffectorNode* nodeWrist2 = new EffectorNode(1.0f, glm::vec3(0.0f, 0.0f, 1.57f), glm::vec3(0.0f), glm::vec3(2 * PI), 1.0f);
 	//EffectorNode* nodeWrist3 = new EffectorNode(1.0f, glm::vec3(0.0f, 0.0f, 1.57f), glm::vec3(0.0f), glm::vec3(2 * PI), 1.0f);
