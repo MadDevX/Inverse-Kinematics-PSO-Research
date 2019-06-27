@@ -1,0 +1,122 @@
+% !TeX spellcheck = en_US
+\documentclass[]{report}
+\usepackage{etoolbox}
+\usepackage[utf8]{inputenc}
+\usepackage{geometry}
+\usepackage{color,soul}
+\usepackage{sidecap}
+\usepackage{blindtext}
+\usepackage{amsmath}
+\usepackage{wrapfig}
+\usepackage{csvsimple}
+\usepackage[shortlabels]{enumitem}
+\usepackage{tabularx}
+\usepackage{makecell}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{svg}
+\graphicspath{{pics/}{../pics/}}
+
+\begin{document}
+\newgeometry{tmargin=2cm, bmargin=2cm, lmargin=1.6cm, rmargin=1.6cm}
+\title{Report from running Inverse Kinematics using PSO algorithm \\
+\large Experiment 2 \\~\\~\\
+\large Course: Research project - GPU algorithms \\
+\large Coordinator: Krzysztof Kaczmarski }
+\author{Eryk Dobrosz \\
+	Marcin Gackowski}
+
+{\let\newpage\relax\maketitle}
+
+\chapter*{Description}
+Project tackles inverse kinematics problem and solves it using Particle Swarm Optimization algorithm implemented with CUDA. Main goals of the project are:
+
+\begin{itemize}
+	\item real-time solving of inverse kinematics problem for arbitrarily large kinematic chains with many effectors
+	\item solution choice that can be used for animation
+\end{itemize}
+
+\section*{Output Files}
+\begin{itemize}
+\item IK-diagnostics-positions.txt - contains positions of nodes each frame during test cases
+\item IK-diagnostics-degrees.txt - contains rotations of nodes each frame during test cases
+\item IK-diagnostics-distance.txt - contains aggregated distance of all effectors from their respective targets each frame during test cases
+\item IK-diagnostics-frames.txt - contains number of frames required to reach acceptable solution for each test case
+\end{itemize}
+
+\chapter*{Report Goals}
+\begin{itemize}
+	\item Test implemented changes to PSO algorithm concerning initial particle distribution.
+	\item Detect system jittering in current approach to find room for further improvements in next iterations.
+\end{itemize}
+
+
+\chapter*{Computational Method}
+\noindent Project is using modified PSO algorithm used in first iteration to solve inverse kinematics problem, therefore method descriptions stated in previous report still apply.\\ 
+
+\noindent Main changes concern particle distribution, which is now dependent on the current state of the system. Kinematic chain rotations are mapped to simulation space and every particle in particle set is initially placed in these exact coordinates, instead of being uniformly distributed across entire simulation space. This modification's main goal is to reduce system jittering, consequently improving project in terms of use in animations.
+
+\chapter*{Description of the results}
+
+\noindent Results were gathered through numerous executions of set test case. System configuration for testing matches test case used in previous iteration:
+
+\begin{itemize}
+	\item Kinematic chain with 21 degrees of freedom, that consists of:
+	\begin{itemize}
+		\item origin node placed in (0, 0, 0)
+		\item 4 consecutive nodes creating a chain with all links of length equal to 1
+		\item 3 effectors linked to the last node in the chain with links of length equal to 1
+	\end{itemize}
+	\item 16384 simulated particles
+	\item 3 targets in set positions that can be reached by all effectors
+	\item aggregated error threshold equal to 0.025 (sum of distances from effectors to their targets)
+\end{itemize}
+
+\noindent At the start of each test case system was reset to its default state, providing reproducible initial conditions for the algorithm.\\
+
+\noindent Gathered results allow to verify used algorithm both in terms of performance and 
+stability in approximation of optimal solution. Results for current iteration are as follows:
+
+\begin{itemize}
+	\item frames to reach satisfactory solution: 
+	\begin{itemize}
+		\item average: $4.15$ 
+		\item min: $2$
+		\item max: $31$
+	\end{itemize}
+	\item frame-difference for each degree of freedom (angle in radians): 
+	\begin{itemize}
+		\item average: $0.16$
+		\item min: $0.00$
+		\item max: $1.31$
+	\end{itemize}
+	\item frame-difference for each node position (distance in OpenGL units):
+	\begin{itemize}
+		\item  average: $0.11$ 
+		\item min: $0.00$ 
+		\item max: $0.86$
+	\end{itemize}
+\end{itemize}
+
+
+\chapter*{Remarks}
+\noindent Results from test case in this iteration show significant improvements in average rotation and position difference that present as follows when compared to previous iteration:
+\begin{itemize}
+	\item 13 times smaller rotation difference on average
+	\item 2.5 times smaller position difference on average
+	\item 1 additional frame needed to reach satisfactory solution on average
+\end{itemize}
+
+\noindent Increase in average frame count to reach solution was expected since current iteration puts more emphasis on using locally available extrema to naturally interpolate system between initial and desired system configurations.\\
+
+\noindent However, maximum values in rotation and position differences suggest that algorithm still occasionally jumps to different areas in simulation space, essentially discarding previously found approximation. This undesirable behaviour stems from random nature of PSO algorithm, meaning that further improvements upon distribution and simulation of particles will not eliminate the issue and can only minimize its probability. Instead, modifying currently used fitness function could ensure that local solutions would be favoured over solutions from different areas of simulation space, which could eliminate the issue completely.
+
+\chapter*{Future works}
+\begin{itemize}
+\item Redesign fitness function to favour locally available solutions.
+\item Implement collision system.
+\item Implement angle constraints.
+\end{itemize}
+
+\end{document}
